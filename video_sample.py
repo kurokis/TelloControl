@@ -52,7 +52,6 @@ def main():
     
     
     out = cv2.VideoWriter('out.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (frame_width,frame_height))
-
     
     drone = tellopy.Tello()
 
@@ -77,6 +76,9 @@ def main():
         pathlib.Path(img_save_dir).mkdir(parents=True, exist_ok=True)
         # index for saving image
         img_idx = 0
+        
+        t_ctrl_start = time.time()
+        i_proc = 0
         while True:
             quit_flag = None
             for frame in container.decode(video=0):
@@ -141,6 +143,24 @@ def main():
                 else:
                     time_base = frame.time_base
                 frame_skip = int((time.time() - start_time)/time_base)
+                
+                # follow pre-defined procedures
+                t_elapsed = time.time() - t_ctrl_start
+                if i_proc==0 and t_elapsed<5:
+                    print("waiting for takeoff")
+                if i_proc==0 and t_elapsed>5:
+                    drone.takeoff()
+                    i_proc+=1
+                elif i_proc==1 and t_elapsed>10:
+                    drone.down(50)
+                    i_proc+=1
+                elif i_proc==2 and t_elapsed>15:
+                    drone.land()
+                    i_proc+=1
+                elif i_proc==2 and t_elapsed>20:
+                    drone.quit()
+                    i_proc+=1
+            
             if quit_flag == True:
                 break
 
