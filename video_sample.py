@@ -27,6 +27,7 @@ def main():
         # skip first 300 frames
         frame_skip = 300
         while True:
+            quit_flag = None
             for frame in container.decode(video=0):
                 # Skip frames if needed
                 if 0 < frame_skip:
@@ -37,10 +38,12 @@ def main():
                 # Process frame
                 image = cv2.cvtColor(numpy.array(frame.to_image()), cv2.COLOR_RGB2BGR)
                 cv2.imshow('Original', image)
-                cv2.imshow('Canny', cv2.Canny(image, 100, 200))
+                #cv2.imshow('Canny', cv2.Canny(image, 100, 200))
                 
                 # Wait for key press
-                cv2.waitKey(1)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    quit_flag = True
+                    break
                 
                 # Calculate number of frames to skip
                 if frame.time_base < 1.0/60:
@@ -48,7 +51,8 @@ def main():
                 else:
                     time_base = frame.time_base
                 frame_skip = int((time.time() - start_time)/time_base)
-                    
+            if quit_flag == True:
+                break
 
     except Exception as ex:
         exc_type, exc_value, exc_traceback = sys.exc_info()
