@@ -5,6 +5,9 @@ import av
 import cv2
 import numpy
 import time
+import pathlib
+
+ 
 
 
 def main():
@@ -26,6 +29,11 @@ def main():
 
         # skip first 300 frames
         frame_skip = 300
+        # create directory for saving image
+        img_save_dir = "./output_data/imgs"
+        pathlib.Path(img_save_dir).mkdir(parents=True, exist_ok=True)
+        # index for saving image
+        img_idx = 0
         while True:
             quit_flag = None
             for frame in container.decode(video=0):
@@ -40,10 +48,13 @@ def main():
                 cv2.imshow('Original', image)
                 #cv2.imshow('Canny', cv2.Canny(image, 100, 200))
                 
-                # Wait for key press
-                if cv2.waitKey(1) & 0xFF == ord('q'):
+                # Wait for key press (0xFF is for 64-bit support)
+                key = (cv2.waitKey(1) & 0xFF)
+                if key == ord('q'):
                     quit_flag = True
                     break
+                elif key == ord('s'):
+                    cv2.imwrite(img_save_dir+"/"+str(img_idx)+".jpg", image)
                 
                 # Calculate number of frames to skip
                 if frame.time_base < 1.0/60:
