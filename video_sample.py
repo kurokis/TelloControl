@@ -20,7 +20,7 @@ marker_map = {
     "5": {"x": 700, "y": 700, "size": 200},
 }
 
-scale_factor = 0.112/500
+scale_factor = 0.112/2/500
 
 cameraMatrix = np.array([[1000.,    0.,  360.],
     [   0., 1000.,  480.],
@@ -95,6 +95,8 @@ def main():
                 
                 markerCorners, markerIds, rejectedImgPoints = aruco.detectMarkers(image, dictionary, parameters=parameters)
                 
+                r_cm = None
+                t_cm = None
                 if markerIds is not None:
                     for corners, markerId in zip(markerCorners, markerIds):
                         marker_size = marker_map[str(markerId[0])]['size']
@@ -107,17 +109,32 @@ def main():
                         
                         cv2.aruco.drawAxis(image, cameraMatrix, distCoeffs, rvec, tvec, 0.15/2);
                         
-                        if markerId==0:
-                            rL = Rotation.from_rotvec(rvec)
-                            tL = tvec
-                            rL_prime = Rotation.from_rotvec(np.array([np.pi,0,0]))*rL
-                            
-                            R = rL_prime.as_matrix()
-                            rG = Rotation.from_matrix(R.T)
-                            tG = -np.matmul(R.T,tL)
-                            ypr = rG.as_euler('zyx', degrees=True)
-                            
-                            cv2.putText(image,"Yaw:{:6.1f} Pitch:{:6.1f} Roll:{:6.1f}".format(ypr[0],ypr[1],ypr[2]), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 2, cv2.LINE_AA)
+                        if markerId[0]==0:
+                            r_cm = Rotation.from_rotvec(rvec)
+                            t_cm = tvec
+                
+                # marker +x=right, +y=up on marker
+                # camera +x=right, +y=down on image
+                # local: +x=right, +y=up on image
+                #
+                #                        rvec,tvec
+                #  local  -----> camera -----> marker
+                #         <-----        <-----
+                #          T_cl          T_mc
+                # 
+                #   T_ml = T_mc*T_cl = [R^T  -R^T*t ] * [diag(1,-1,-1)  0]
+                #                      [ 0    1     ]   [ 0             1]
+                
+                if r_cm is not None:
+                    R=r_cm.as_matrix() # rotation from camera to marker
+                    R_ml = np.matmul(R.T,np.array([[1,0,0],[0,-1,0],[0,0,-1]])) # rotation from marker to local
+                    r_ml = Rotation.from_matrix(R_ml) 
+                    t_cl = -np.matmul(R.T,t_cm) # translation from marker to local
+                    
+                    ypr = r_ml.as_euler('zyx', degrees=True)
+                    
+                    cv2.putText(image,"yaw:{:6.1f} deg   pitch:{:6.1f} deg   roll:{:6.1f} deg".format(ypr[0],ypr[1],ypr[2]), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255,255,255), 2, cv2.LINE_AA)
+                    cv2.putText(image,"  x:{:6.2f} m         y:{:6.2f} m        z:{:6.2f} m".format(t_cl[0],t_cl[1],t_cl[2]), (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255,255,255), 2, cv2.LINE_AA)
                     
                 # convert image to RGB
                 #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -126,7 +143,7 @@ def main():
                 cv2.imshow('Image', image)
                 #cv2.imshow('Canny', cv2.Canny(image, 100, 200))
                 
-                out.write(original_image)
+                out.write(image)
                 
                 # Wait for key press (0xFF is for 64-bit support)
                 key = (cv2.waitKey(1) & 0xFF)
