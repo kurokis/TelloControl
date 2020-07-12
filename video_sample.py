@@ -40,12 +40,19 @@ distCoeffs = np.array([[ 0.00000000e+000],
     [ 0.00000000e+000],
     [ 0.00000000e+000]])
 
+frame_width = 960
+frame_height = 720
+
 def main():
     aruco = cv2.aruco
     dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
     parameters =  aruco.DetectorParameters_create()
     # CORNER_REFINE_NONE, no refinement. CORNER_REFINE_SUBPIX, do subpixel refinement. CORNER_REFINE_CONTOUR use contour-Points
     parameters.cornerRefinementMethod = aruco.CORNER_REFINE_CONTOUR
+    
+    
+    out = cv2.VideoWriter('out.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (frame_width,frame_height))
+
     
     drone = tellopy.Tello()
 
@@ -82,14 +89,13 @@ def main():
                 # Process frame
                 image = cv2.cvtColor(numpy.array(frame.to_image()), cv2.COLOR_RGB2BGR)
                 
+                original_image = image.copy()
+                
                 markerCorners, markerIds, rejectedImgPoints = aruco.detectMarkers(image, dictionary, parameters=parameters)
                 
                 if markerIds is not None:
                     for corners, markerId in zip(markerCorners, markerIds):
-                        #print("marker_id:",markerId)
-                        #print("type",type(markerId))
                         marker_size = marker_map[str(markerId[0])]['size']
-                        #print("marker_size:",marker_size)
                         
                         rvecs, tvecs, _objPoints = aruco.estimatePoseSingleMarkers(corners, marker_size*scale_factor, cameraMatrix, distCoeffs)
                         
@@ -102,7 +108,7 @@ def main():
                         if markerId==0:
                             rL = Rotation.from_rotvec(rvec)
                             tL = tvec
-                            rL_prime = Rotation.from_rotvec(np.array([np.pi,0,0]))*rL # まずカメラ座標を180度回転させる
+                            rL_prime = Rotation.from_rotvec(np.array([np.pi,0,0]))*rL
                             
                             R = rL_prime.as_matrix()
                             rG = Rotation.from_matrix(R.T)
@@ -117,6 +123,8 @@ def main():
                 
                 cv2.imshow('Image', image)
                 #cv2.imshow('Canny', cv2.Canny(image, 100, 200))
+                
+                out.write(original_image)
                 
                 # Wait for key press (0xFF is for 64-bit support)
                 key = (cv2.waitKey(1) & 0xFF)
@@ -141,6 +149,7 @@ def main():
         traceback.print_exception(exc_type, exc_value, exc_traceback)
         print(ex)
     finally:
+        out.release()
         drone.quit()
         cv2.destroyAllWindows()
 
