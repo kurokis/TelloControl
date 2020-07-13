@@ -78,7 +78,7 @@ def main():
         img_idx = 0
         
         t_ctrl_start = time.time()
-        i_proc = 0
+        i_proc = -1
         while True:
             quit_flag = None
             for frame in container.decode(video=0):
@@ -151,7 +151,7 @@ def main():
                     quit_flag = True
                     break
                 elif key == ord('s'):
-                    cv2.imwrite(img_save_dir+"/"+str(img_idx)+".jpg", image)
+                    cv2.imwrite(img_save_dir+"/"+str(img_idx)+".jpg", original_image)
                     img_idx += 1
                 
                 # Calculate number of frames to skip
