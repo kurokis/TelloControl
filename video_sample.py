@@ -131,7 +131,7 @@ def main():
                     r_ml = Rotation.from_matrix(R_ml) 
                     t_ml = -np.matmul(R.T,t_cm) # translation from marker to local
                     
-                    ypr = r_ml.as_euler('zyx', degrees=True)
+                    ypr = r_ml.as_euler('ZYX', degrees=True)
                     
                     cv2.putText(image,"yaw:{:6.1f} deg   pitch:{:6.1f} deg   roll:{:6.1f} deg".format(ypr[0],ypr[1],ypr[2]), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255,255,255), 2, cv2.LINE_AA)
                     cv2.putText(image,"  x:{:6.2f} m         y:{:6.2f} m        z:{:6.2f} m".format(t_ml[0],t_ml[1],t_ml[2]), (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255,255,255), 2, cv2.LINE_AA)
