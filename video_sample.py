@@ -3,7 +3,6 @@ import traceback
 import tellopy
 import av
 import cv2
-import numpy
 import time
 import pathlib
 from PIL import Image, ImageDraw, ImageFilter
@@ -89,7 +88,7 @@ def main():
                 start_time = time.time()
                 
                 # Process frame
-                image = cv2.cvtColor(numpy.array(frame.to_image()), cv2.COLOR_RGB2BGR)
+                image = cv2.cvtColor(np.array(frame.to_image()), cv2.COLOR_RGB2BGR)
                 
                 original_image = image.copy()
                 
