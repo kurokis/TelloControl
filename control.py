@@ -50,20 +50,17 @@ image_save_dir = output_dir / "images"
 
 class StateEstimator:
     def __init__(self):
-        # world  +x=forward, +y=up on marker
-        # marker +x=right, +y=up on marker
-        # camera +x=right, +y=down on image
+        # Coordinate systems
+        #
+        # world:  +x=forward, +y=up on marker
+        # marker: +x=right, +y=up on marker
+        # camera: +x=right, +y=down on image
         # local: +x=forward, +y=up on image
         #
-        #                        rvec,tvec
+        #                       rvec,tvec
         #  local  -----> camera -----> marker -----> world
         #         <-----        <-----        <-----
-        #          T_cl          T_mc
-        #
-        #   T_wl = T_wm*T_mc*T_cl = [0 0 -1 0] * [R^T  -R^T*t ] * [ 0 1  0 0]
-        #                           [1 0  0 0]   [ 0    1     ]   [ 0 0 -1 0]
-        #                           [0 1  0 0]                    [ 1 0  0 0]
-        #                           [0 0  0 1]                    [ 0 0  0 1]
+        #          T_cl          T_mc          T_wm
 
         # Position relative to marker
         self.position = np.array([0, 0, 0])
@@ -117,25 +114,33 @@ class StateEstimator:
                     t_cm = tvec
 
         if r_cm is not None:
-            R_cm = r_cm.as_matrix()  # rotation from camera to marker
+            # Calculate transformation from marker to camera using inverse formula
+            # Given rotation matrix R and translation vector t,
+            # inverse rotation matrix = R^T
+            # inverse translation vector = -R^T*t
+            R_cm = r_cm.as_matrix()
             R_mc = R_cm.T
             t_mc = -np.matmul(R_cm.T, t_cm)
 
             # Homogeneous transformation matrix from marker to camera coordinates
             T_mc = np.block([[R_mc, t_mc[:, np.newaxis]], [0, 0, 0, 1]])
 
+            # Homogeneous transformation matrix from camera to local coordinates
             T_cl = np.array([[0, -1, 0, 0],
                              [0, 0, -1, 0],
                              [1, 0, 0, 0],
                              [0, 0, 0, 1]])
 
+            # Homogeneous transformation matrix from world to marker coordinates
             T_wm = np.array([[0, 0, -1, 0],
                              [-1, 0, 0, 0],
                              [0, 1, 0, 0],
                              [0, 0, 0, 1]])
 
+            # Homogeneous transformation matrix from world to local coordinates
             T_wl = np.matmul(np.matmul(T_wm, T_mc), T_cl)
 
+            # Decompose the matrix into rotation matrix and translation vector
             R_wl = T_wl[0:3, 0:3]
             t_wl = T_wl[0:3, 3]
 
