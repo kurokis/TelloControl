@@ -9,38 +9,6 @@ from PIL import Image, ImageDraw, ImageFilter
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-# Parameters for state estimator
-marker_map = {
-    "0": {"x": 100, "y": 100, "size": 500},
-    "1": {"x": 700, "y": 100, "size": 200},
-    "2": {"x": 700, "y": 400, "size": 200},
-    "3": {"x": 100, "y": 700, "size": 200},
-    "4": {"x": 400, "y": 700, "size": 200},
-    "5": {"x": 700, "y": 700, "size": 200},
-}
-
-# Scale factor to convert marker size to real world units
-# Define by meters/pixel
-scale_factor = 0.108/500
-
-cameraMatrix = np.array([[1000.,    0.,  360.],
-                         [0., 1000.,  480.],
-                         [0.,    0.,    1.]])
-distCoeffs = np.array([[0.00000000e+000],
-                       [-6.32814106e-123],
-                       [4.34421711e-184],
-                       [3.68913910e-168],
-                       [-1.88715756e-092],
-                       [2.12305495e-153],
-                       [6.32814106e-123],
-                       [1.88715756e-092],
-                       [0.00000000e+000],
-                       [0.00000000e+000],
-                       [0.00000000e+000],
-                       [0.00000000e+000],
-                       [0.00000000e+000],
-                       [0.00000000e+000]])
-
 
 class Recorder:
     def __init__(self, output_dir, frame_width=960, frame_height=720):
@@ -89,21 +57,56 @@ class StateEstimator:
         #         <-----        <-----        <-----
         #          T_cl          T_mc          T_wm
 
+        #### Drone states ####
         # Position relative to marker
         self.position = np.array([0, 0, 0])
         # Euler angles in intrisic z-y-x notation (yaw, pitch, roll)
         self.eulerdeg = np.array([0, 0, 0])
 
-        # image
+        #### Camera parameters ####
+        # Camera matrix
+        self.cameraMatrix = np.array([[1000.,    0.,  360.],
+                                      [0., 1000.,  480.],
+                                      [0.,    0.,    1.]])
+        # Distortion coefficients
+        self.distCoeffs = np.array([[0.00000000e+000],
+                                    [-6.32814106e-123],
+                                    [4.34421711e-184],
+                                    [3.68913910e-168],
+                                    [-1.88715756e-092],
+                                    [2.12305495e-153],
+                                    [6.32814106e-123],
+                                    [1.88715756e-092],
+                                    [0.00000000e+000],
+                                    [0.00000000e+000],
+                                    [0.00000000e+000],
+                                    [0.00000000e+000],
+                                    [0.00000000e+000],
+                                    [0.00000000e+000]])
+
+        #### Marker map parameters ####
+        self.marker_map = {
+            "0": {"x": 100, "y": 100, "size": 500},
+            "1": {"x": 700, "y": 100, "size": 200},
+            "2": {"x": 700, "y": 400, "size": 200},
+            "3": {"x": 100, "y": 700, "size": 200},
+            "4": {"x": 400, "y": 700, "size": 200},
+            "5": {"x": 700, "y": 700, "size": 200},
+        }
+
+        # Scale factor to convert marker size to real world units
+        # Define by meters/pixel
+        self.scale_factor = 0.108/500
+
+        #### Images ####
         self.original_image = None
         self.overlay_image = None
 
-        # initialize aruco
+        #### Initialization ####
         self.aruco = cv2.aruco
-        self.dictionary = self.aruco.getPredefinedDictionary(
+        self.aruco_dictionary = self.aruco.getPredefinedDictionary(
             self.aruco.DICT_4X4_50)
-        # CORNER_REFINE_NONE, no refinement. CORNER_REFINE_SUBPIX, do subpixel refinement. CORNER_REFINE_CONTOUR use contour-Points
-        self.parameters = self.aruco.DetectorParameters_create()
+        self.aruco_parameters = self.aruco.DetectorParameters_create()
 
     def update(self, image):
         # Update state from image
@@ -113,7 +116,7 @@ class StateEstimator:
 
         # Detect markers
         markerCorners, markerIds, _ = self.aruco.detectMarkers(
-            image, self.dictionary, parameters=self.parameters)
+            image, self.aruco_dictionary, parameters=self.aruco_parameters)
 
         # Compute rotation and translation relative to marker
         r_cm = None
@@ -121,20 +124,20 @@ class StateEstimator:
         if markerIds is not None:
             for corners, markerId in zip(markerCorners, markerIds):
                 try:
-                    marker_size = marker_map[str(markerId[0])]['size']
+                    marker_size = self.marker_map[str(markerId[0])]['size']
                 except KeyError:
                     # Skip if a marker not defined in marker map is found
                     continue
 
                 rvecs, tvecs, _objPoints = self.aruco.estimatePoseSingleMarkers(
-                    corners, marker_size*scale_factor, cameraMatrix, distCoeffs)
+                    corners, marker_size*self.scale_factor, self.cameraMatrix, self.distCoeffs)
 
                 # Remove unnecessary axis
                 tvec = np.squeeze(tvecs)
                 rvec = np.squeeze(rvecs)
 
                 cv2.aruco.drawAxis(
-                    image, cameraMatrix, distCoeffs, rvec, tvec, 0.15/2)
+                    image, self.cameraMatrix, self.distCoeffs, rvec, tvec, 0.15/2)
 
                 if markerId[0] == 0:
                     r_cm = Rotation.from_rotvec(rvec)
@@ -210,8 +213,6 @@ def main():
         # skip first 300 frames
         frame_skip = 300
 
-        t_ctrl_start = time.time()
-        i_proc = -1
         while True:
             quit_flag = None
             for frame in container.decode(video=0):
@@ -274,23 +275,6 @@ def main():
                 else:
                     time_base = frame.time_base
                 frame_skip = int((time.time() - start_time)/time_base)
-
-                # follow pre-defined procedures
-                t_elapsed = time.time() - t_ctrl_start
-                if i_proc == 0 and t_elapsed < 5:
-                    print("waiting for takeoff")
-                if i_proc == 0 and t_elapsed > 5:
-                    drone.takeoff()
-                    i_proc += 1
-                elif i_proc == 1 and t_elapsed > 10:
-                    drone.down(50)
-                    i_proc += 1
-                elif i_proc == 2 and t_elapsed > 15:
-                    drone.land()
-                    i_proc += 1
-                elif i_proc == 2 and t_elapsed > 20:
-                    drone.quit()
-                    i_proc += 1
 
             if quit_flag == True:
                 break

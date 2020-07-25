@@ -8,12 +8,15 @@ pipからtellopyをインストール
 $ pip install tellopy
 ```
 
-AnacondaからPyAV(FFmpegのPythonバインディング)とOpenCVをインストール
+Anacondaから必要なライブラリをインストール
 
 ```console
-$ conda install -c conda-forge av
-$ conda install -c conda-forge opencv
+$ conda install numpy
+$ conda install -c conda-forge scipy av opencv
 ```
+
+Note: PyAVはFFmpegのPythonバインディング
+
 
 # 座標変換
 
