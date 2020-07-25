@@ -19,7 +19,9 @@ marker_map = {
     "5": {"x": 700, "y": 700, "size": 200},
 }
 
-scale_factor = 0.112/2/500
+# Scale factor to convert marker size to real world units
+# Define by meters/pixel
+scale_factor = 0.108/500
 
 cameraMatrix = np.array([[1000.,    0.,  360.],
                          [0., 1000.,  480.],
@@ -39,13 +41,38 @@ distCoeffs = np.array([[0.00000000e+000],
                        [0.00000000e+000],
                        [0.00000000e+000]])
 
-# Parameters for video writer
-frame_width = 960
-frame_height = 720
 
-# Common parameters
-output_dir = pathlib.Path("./output_data")
-image_save_dir = output_dir / "images"
+class Recorder:
+    def __init__(self, output_dir, frame_width=960, frame_height=720):
+        # Variables
+        self.image_index = 0
+        self.output_dir = pathlib.Path(output_dir)
+        self.frame_width = frame_width
+        self.frame_height = frame_height
+        self.video_save_dir = self.output_dir / "videos"
+        self.image_save_dir = self.output_dir / "images"
+
+        # Create directory for saving image
+        pathlib.Path(self.image_save_dir).mkdir(parents=True, exist_ok=True)
+
+        # Create directory for saving video
+        pathlib.Path(self.video_save_dir).mkdir(parents=True, exist_ok=True)
+
+        # Initialize video writer
+        self.video_writer = cv2.VideoWriter(str(self.video_save_dir / "output.avi"), cv2.VideoWriter_fourcc(
+            'M', 'J', 'P', 'G'), 10, (self.frame_width, self.frame_height))
+
+    def write_video_frame(self, image):
+        # Write video frame
+        self.video_writer.write(image)
+
+    def write_image(self, image):
+        img_filename = str(self.image_index)+".jpg"
+        cv2.imwrite(str(self.image_save_dir / img_filename), image)
+        self.image_index += 1
+
+    def release(self):
+        self.video_writer.release()
 
 
 class StateEstimator:
@@ -157,13 +184,8 @@ class StateEstimator:
 
 
 def main():
-
-    # Initialize video writer
-    video_writer = cv2.VideoWriter(str(output_dir / "output.avi"), cv2.VideoWriter_fourcc(
-        'M', 'J', 'P', 'G'), 10, (frame_width, frame_height))
-
-    # Create directory for saving image
-    pathlib.Path(image_save_dir).mkdir(parents=True, exist_ok=True)
+    # Initialize recorder
+    rec = Recorder("./output_data")
 
     # Initialize state estimator
     se = StateEstimator()
@@ -188,9 +210,6 @@ def main():
         # skip first 300 frames
         frame_skip = 300
 
-        # index for saving image
-        img_idx = 0
-
         t_ctrl_start = time.time()
         i_proc = -1
         while True:
@@ -206,13 +225,14 @@ def main():
                 image = cv2.cvtColor(
                     np.array(frame.to_image()), cv2.COLOR_RGB2BGR)
 
+                # Update state estimator
                 se.update(image)
 
                 # Show image
                 cv2.imshow('Image', se.overlay_image)
 
                 # Write video frame
-                video_writer.write(se.overlay_image)
+                rec.write_video_frame(se.overlay_image)
 
                 # Wait for key press (0xFF is for 64-bit support)
                 key = (cv2.waitKey(1) & 0xFF)
@@ -246,10 +266,7 @@ def main():
                     drone.counter_clockwise(0)
                     drone.up(0)
                 elif key == ord('r'):
-                    img_filename = str(img_idx)+".jpg"
-                    cv2.imwrite(str(image_save_dir / img_filename),
-                                se.overlay_image)
-                    img_idx += 1
+                    rec.write_image(se.overlay_image)
 
                 # Calculate number of frames to skip
                 if frame.time_base < 1.0/60:
@@ -283,7 +300,7 @@ def main():
         traceback.print_exception(exc_type, exc_value, exc_traceback)
         print(ex)
     finally:
-        video_writer.release()
+        rec.release()
         drone.quit()
         cv2.destroyAllWindows()
 
