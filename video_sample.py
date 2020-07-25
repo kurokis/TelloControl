@@ -92,7 +92,7 @@ def main():
                 
                 original_image = image.copy()
                 
-                markerCorners, markerIds, rejectedImgPoints = aruco.detectMarkers(image, dictionary, parameters=parameters)
+                markerCorners, markerIds, _ = aruco.detectMarkers(image, dictionary, parameters=parameters)
                 
                 r_cm = None
                 t_cm = None
@@ -106,7 +106,7 @@ def main():
                         tvec = np.squeeze(tvecs)
                         rvec = np.squeeze(rvecs)
                         
-                        cv2.aruco.drawAxis(image, cameraMatrix, distCoeffs, rvec, tvec, 0.15/2);
+                        cv2.aruco.drawAxis(image, cameraMatrix, distCoeffs, rvec, tvec, 0.15/2)
                         
                         if markerId[0]==0:
                             r_cm = Rotation.from_rotvec(rvec)
