@@ -213,6 +213,89 @@ class StateEstimator:
         self.overlay_image = image
 
 
+class Controller:
+    def __init__(self):
+        self.mode_auto = False
+
+        # Variables for automatic control
+        # Target position: x, y, z in meters
+        self.target_position = np.array([-1, 0, 0])
+        # Target attitude: yaw, pitch, roll in degrees
+        self.target_attitude = np.array([0, 0, 0])
+
+    def key_handler(self, key, drone, se):
+        if self.mode_auto == False:
+            # Manual control
+            #
+            # q: quit
+            # z: switch mode between manual and auto
+            #
+            #    w           t           i
+            #  a s d         g         j k l
+            #
+            #  pitch      takeoff      vertical
+            #  & roll    & landing     & yaw
+            #
+            if key == ord('t'):
+                drone.takeoff()
+            elif key == ord('g'):
+                drone.land()
+            elif key == ord('a'):
+                drone.left(30)
+            elif key == ord('d'):
+                drone.right(30)
+            elif key == ord('w'):
+                drone.forward(30)
+            elif key == ord('s'):
+                drone.backward(30)
+            elif key == ord('j'):
+                drone.counter_clockwise(30)
+            elif key == ord('l'):
+                drone.clockwise(30)
+            elif key == ord('i'):
+                drone.up(30)
+            elif key == ord('k'):
+                drone.down(30)
+            elif key == ord('z'):
+                self.mode_auto = True
+                # Change log level to avoid showing info
+                drone.set_loglevel(drone.LOG_WARN)
+            else:
+                # hover
+                # set internal values directly to avoid showing info
+                drone.right_x = 0
+                drone.right_y = 0
+                drone.left_x = 0
+                drone.left_y = 0
+        else:
+            # Automatic control
+
+            if key == ord('z'):
+                self.mode_auto = False
+                # Change log level to show info
+                drone.set_loglevel(drone.LOG_INFO)
+                return
+            elif key == ord('g'):
+                # Land and revert to manual mode immediately
+                drone.land()
+                self.mode_auto = False
+                return
+
+            delta_position = self.target_position - se.position
+
+            # x control
+            dx = delta_position[0]
+            k = 0  # (m/s)/m TODO: compute feedback gain
+            scale_factor = 0  # unit/(m/s) TODO: estimate from log
+            max_command = 50
+            speed_command = (k*abs(dx))*scale_factor
+            speed_command = np.clip(speed_command, 0, max_command)
+            if dx > 0.1:
+                drone.forward(speed_command)
+            elif dx < 0.1:
+                drone.backward(speed_command)
+
+
 def main():
     # Initialize recorder
     rec = Recorder("./output_data")
@@ -220,13 +303,16 @@ def main():
     # Initialize state estimator
     se = StateEstimator()
 
+    # Initialize controller
+    controller = Controller()
+
     # Create a drone instance
     drone = tellopy.Tello()
 
     try:
+        ######## Connect with the drone ########
         drone.connect()
         drone.wait_for_connection(60.0)
-
         retry = 3
         container = None
         while container is None and 0 < retry:
@@ -236,69 +322,55 @@ def main():
             except av.AVError as ave:
                 print(ave)
                 print('retry...')
-
-        # skip first 300 frames
+        # Skip first 300 frames
         frame_skip = 300
 
+        quit_flag = False
         while True:
-            quit_flag = None
             for frame in container.decode(video=0):
+                ######## Manage process delay ########
                 # Skip frames if needed
                 if 0 < frame_skip:
                     frame_skip = frame_skip - 1
                     continue
                 start_time = time.time()
 
+                ######## Obtain image ########
                 # Convert frame to BGR image
                 image = cv2.cvtColor(
                     np.array(frame.to_image()), cv2.COLOR_RGB2BGR)
 
+                ######## State estimation ########
                 # Update state estimator
                 se.update(image)
 
+                ######## Control ########
+                # Wait for key press (0xFF is for 64-bit support)
+                key = (cv2.waitKey(1) & 0xFF)
+
+                # Handle key outside the scope of the controller
+                if key == ord('q'):
+                    # End all process immediately
+                    quit_flag = True
+                    break
+                elif key == ord('r'):
+                    # Save image
+                    rec.write_image(se.overlay_image)
+
+                # Handle key inside the scope of the controller
+                controller.key_handler(key, drone, se)
+
+                ######## Export data ########
                 # Show image
                 cv2.imshow('Image', se.overlay_image)
 
                 # Write video frame
-                rec.write_video_frame(se.overlay_image)
+                rec.write_video_frame(se.original_image)
 
                 # Write states to log
                 rec.write_log(se.t, se.position, se.eulerdeg)
 
-                # Wait for key press (0xFF is for 64-bit support)
-                key = (cv2.waitKey(1) & 0xFF)
-                if key == ord('q'):
-                    quit_flag = True
-                    break
-                elif key == ord('t'):
-                    drone.takeoff()
-                elif key == ord('g'):
-                    drone.land()
-                elif key == ord('a'):
-                    drone.left(10)
-                elif key == ord('d'):
-                    drone.right(10)
-                elif key == ord('w'):
-                    drone.forward(10)
-                elif key == ord('s'):
-                    drone.backward(10)
-                elif key == ord('j'):
-                    drone.counter_clockwise(10)
-                elif key == ord('l'):
-                    drone.clockwise(10)
-                elif key == ord('i'):
-                    drone.up(10)
-                elif key == ord('k'):
-                    drone.down(10)
-                elif key == ord('x'):
-                    # stop
-                    drone.left(0)
-                    drone.forward(0)
-                    drone.counter_clockwise(0)
-                    drone.up(0)
-                elif key == ord('r'):
-                    rec.write_image(se.overlay_image)
-
+                ######## Manage process delay ########
                 # Calculate number of frames to skip
                 if frame.time_base < 1.0/60:
                     time_base = 1.0/60
@@ -307,6 +379,9 @@ def main():
                 frame_skip = int((time.time() - start_time)/time_base)
 
             if quit_flag == True:
+                for _ in range(8):
+                    drone.land()
+                    time.sleep(1)
                 break
 
     except Exception as ex:
