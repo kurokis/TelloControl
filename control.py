@@ -193,9 +193,34 @@ def main():
                 key = (cv2.waitKey(1) & 0xFF)
                 if key == ord('q'):
                     quit_flag = True
-                    drone.land()
                     break
+                elif key == ord('t'):
+                    drone.takeoff()
+                elif key == ord('g'):
+                    drone.land()
+                elif key == ord('a'):
+                    drone.left(10)
+                elif key == ord('d'):
+                    drone.right(10)
+                elif key == ord('w'):
+                    drone.forward(10)
                 elif key == ord('s'):
+                    drone.backward(10)
+                elif key == ord('j'):
+                    drone.counter_clockwise(10)
+                elif key == ord('l'):
+                    drone.clockwise(10)
+                elif key == ord('i'):
+                    drone.up(10)
+                elif key == ord('k'):
+                    drone.down(10)
+                elif key == ord('x'):
+                    # stop
+                    drone.left(0)
+                    drone.forward(0)
+                    drone.counter_clockwise(0)
+                    drone.up(0)
+                elif key == ord('r'):
                     img_filename = str(img_idx)+".jpg"
                     cv2.imwrite(str(image_save_dir / img_filename),
                                 se.overlay_image)
