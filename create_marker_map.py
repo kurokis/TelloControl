@@ -17,8 +17,8 @@ pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
 #    |
 #    y (height)
 #
-width = 1200
-height = 1200
+width = 1000
+height = 1000
 
 # Marker map
 # x: x position of upper left corner

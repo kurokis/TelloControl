@@ -8,6 +8,7 @@ import pathlib
 from PIL import Image, ImageDraw, ImageFilter
 import numpy as np
 from scipy.spatial.transform import Rotation
+import datetime
 
 
 class Recorder:
@@ -19,12 +20,17 @@ class Recorder:
         self.frame_height = frame_height
         self.video_save_dir = self.output_dir / "videos"
         self.image_save_dir = self.output_dir / "images"
+        self.log_save_dir = self.output_dir / "logs"
+        self.log_filename = datetime.datetime.now().strftime("%y%m%d_%H%M%S")+".csv"
 
         # Create directory for saving image
         pathlib.Path(self.image_save_dir).mkdir(parents=True, exist_ok=True)
 
         # Create directory for saving video
         pathlib.Path(self.video_save_dir).mkdir(parents=True, exist_ok=True)
+
+        # Create directory for saving video
+        pathlib.Path(self.log_save_dir).mkdir(parents=True, exist_ok=True)
 
         # Initialize video writer
         self.video_writer = cv2.VideoWriter(str(self.video_save_dir / "output.avi"), cv2.VideoWriter_fourcc(
@@ -38,6 +44,23 @@ class Recorder:
         img_filename = str(self.image_index)+".jpg"
         cv2.imwrite(str(self.image_save_dir / img_filename), image)
         self.image_index += 1
+
+    def write_log(self, t, position, eulerdeg):
+        log_path = self.log_save_dir/self.log_filename
+
+        # Write header if log file does not yet exist
+        if not log_path.exists():
+            with open(log_path, mode='w') as f:
+                f.write("t(s),x(m),y(m),z(m),yaw(deg),pitch(deg),roll(deg)\n")
+
+        # Append row
+        with open(log_path, mode='a') as f:
+            s = ""
+            data = [t] + list(position) + list(eulerdeg)
+            for d in data[:-1]:
+                s += str(d) + ","
+            s += str(data[-1]) + "\n"
+            f.write(s)
 
     def release(self):
         self.video_writer.release()
@@ -58,6 +81,9 @@ class StateEstimator:
         #          T_cl          T_mc          T_wm
 
         #### Drone states ####
+        # Timestamp in seconds
+        self.t = 0
+        self.t0 = time.time()
         # Position relative to marker
         self.position = np.array([0, 0, 0])
         # Euler angles in intrisic z-y-x notation (yaw, pitch, roll)
@@ -110,6 +136,7 @@ class StateEstimator:
 
     def update(self, image):
         # Update state from image
+        self.t = time.time() - self.t0
 
         # Save original image
         self.original_image = image.copy()
@@ -234,6 +261,9 @@ def main():
 
                 # Write video frame
                 rec.write_video_frame(se.overlay_image)
+
+                # Write states to log
+                rec.write_log(se.t, se.position, se.eulerdeg)
 
                 # Wait for key press (0xFF is for 64-bit support)
                 key = (cv2.waitKey(1) & 0xFF)
