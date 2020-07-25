@@ -50,6 +50,21 @@ image_save_dir = output_dir / "images"
 
 class StateEstimator:
     def __init__(self):
+        # world  +x=forward, +y=up on marker
+        # marker +x=right, +y=up on marker
+        # camera +x=right, +y=down on image
+        # local: +x=forward, +y=up on image
+        #
+        #                        rvec,tvec
+        #  local  -----> camera -----> marker -----> world
+        #         <-----        <-----        <-----
+        #          T_cl          T_mc
+        #
+        #   T_wl = T_wm*T_mc*T_cl = [0 0 -1 0] * [R^T  -R^T*t ] * [ 0 1  0 0]
+        #                           [1 0  0 0]   [ 0    1     ]   [ 0 0 -1 0]
+        #                           [0 1  0 0]                    [ 1 0  0 0]
+        #                           [0 0  0 1]                    [ 0 0  0 1]
+
         # Position relative to marker
         self.position = np.array([0, 0, 0])
         # Euler angles in intrisic z-y-x notation (yaw, pitch, roll)
@@ -81,7 +96,11 @@ class StateEstimator:
         t_cm = None
         if markerIds is not None:
             for corners, markerId in zip(markerCorners, markerIds):
-                marker_size = marker_map[str(markerId[0])]['size']
+                try:
+                    marker_size = marker_map[str(markerId[0])]['size']
+                except KeyError:
+                    # Skip if a marker not defined in marker map is found
+                    continue
 
                 rvecs, tvecs, _objPoints = self.aruco.estimatePoseSingleMarkers(
                     corners, marker_size*scale_factor, cameraMatrix, distCoeffs)
@@ -97,36 +116,37 @@ class StateEstimator:
                     r_cm = Rotation.from_rotvec(rvec)
                     t_cm = tvec
 
-        # marker +x=right, +y=up on marker
-        # camera +x=right, +y=down on image
-        # local: +x=right, +y=up on image
-        #
-        #                        rvec,tvec
-        #  local  -----> camera -----> marker
-        #         <-----        <-----
-        #          T_cl          T_mc
-        #
-        #   T_ml = T_mc*T_cl = [R^T  -R^T*t ] * [diag(1,-1,-1)  0]
-        #                      [ 0    1     ]   [ 0             1]
-
         if r_cm is not None:
-            R = r_cm.as_matrix()  # rotation from camera to marker
-            # rotation from marker to local
-            R_ml = np.matmul(R.T, np.array(
-                [[1, 0, 0], [0, -1, 0], [0, 0, -1]]))
-            r_ml = Rotation.from_matrix(R_ml)
-            # translation from marker to local
-            t_ml = -np.matmul(R.T, t_cm)
+            R_cm = r_cm.as_matrix()  # rotation from camera to marker
+            R_mc = R_cm.T
+            t_mc = -np.matmul(R_cm.T, t_cm)
 
-            ypr = r_ml.as_euler('ZYX', degrees=True)
+            # Homogeneous transformation matrix from marker to camera coordinates
+            T_mc = np.block([[R_mc, t_mc[:, np.newaxis]], [0, 0, 0, 1]])
 
-            self.position = np.array(t_ml)
-            self.eulerdeg = np.array(ypr)
+            T_cl = np.array([[0, -1, 0, 0],
+                             [0, 0, -1, 0],
+                             [1, 0, 0, 0],
+                             [0, 0, 0, 1]])
+
+            T_wm = np.array([[0, 0, -1, 0],
+                             [-1, 0, 0, 0],
+                             [0, 1, 0, 0],
+                             [0, 0, 0, 1]])
+
+            T_wl = np.matmul(np.matmul(T_wm, T_mc), T_cl)
+
+            R_wl = T_wl[0:3, 0:3]
+            t_wl = T_wl[0:3, 3]
+
+            self.position = np.array(t_wl)
+            self.eulerdeg = Rotation.from_matrix(
+                R_wl).as_euler('ZYX', degrees=True)
 
             cv2.putText(image, "yaw:{:6.1f} deg   pitch:{:6.1f} deg   roll:{:6.1f} deg".format(
-                ypr[0], ypr[1], ypr[2]), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
+                *self.eulerdeg), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
             cv2.putText(image, "  x:{:6.2f} m         y:{:6.2f} m        z:{:6.2f} m".format(
-                t_ml[0], t_ml[1], t_ml[2]), (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
+                *self.position), (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
 
         self.overlay_image = image
 
