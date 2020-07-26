@@ -1,6 +1,6 @@
 # Tello Control
 
-## インストール
+# インストール
 
 Anacondaがインストールされている前提とする。
 
@@ -13,11 +13,21 @@ $ pip install tellopy
 Anacondaから必要なライブラリをインストール
 
 ```console
-$ conda install numpy matplotlib
+$ conda install numpy matplotlib pillow
 $ conda install -c conda-forge scipy av opencv
 ```
 
 Note: PyAVはFFmpegのPythonバインディング
+
+# ファイル構成
+
+
+| スクリプト | 内容 |
+|-----------|------|
+| create_calibration_board.py | カメラキャリブレーション用のCharuco board作成 |
+| calibrate_from_images.py | キャリブレーション用画像から補正パラメータ算出 |
+| create_marker_map.py | 位置推定用のマーカー作成 |
+| control.py | 制御用のメインスクリプト |
 
 
 # マニュアル飛行モード

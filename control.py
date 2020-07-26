@@ -1,16 +1,16 @@
 import sys
 import traceback
+import time
+import datetime
+import pathlib
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation
+from PIL import Image, ImageDraw, ImageFilter
 import tellopy
 import av
 import cv2
-import time
-import pathlib
-from PIL import Image, ImageDraw, ImageFilter
-import numpy as np
-from scipy.spatial.transform import Rotation
-import datetime
-import matplotlib
-import matplotlib.pyplot as plt
 
 
 class Recorder:
@@ -143,11 +143,12 @@ class StateEstimator:
         self.aruco_parameters = self.aruco.DetectorParameters_create()
 
     def update(self, image):
-        # Update state from image
+        # Update timestamp
         self.t = time.time() - self.t0
 
-        # Save original image
+        # Save copy of the image
         self.original_image = image.copy()
+        self.overlay_image = image.copy()
 
         # Detect markers
         markerCorners, markerIds, _ = self.aruco.detectMarkers(
@@ -172,7 +173,7 @@ class StateEstimator:
                 rvec = np.squeeze(rvecs)
 
                 cv2.aruco.drawAxis(
-                    image, self.cameraMatrix, self.distCoeffs, rvec, tvec, 0.15/2)
+                    self.overlay_image, self.cameraMatrix, self.distCoeffs, rvec, tvec, 0.15/2)
 
                 if markerId[0] == 0:
                     r_cm = Rotation.from_rotvec(rvec)
@@ -209,13 +210,15 @@ class StateEstimator:
             R_wl = T_wl[0:3, 0:3]
             t_wl = T_wl[0:3, 3]
 
+            # Store estimated orientation
             self.position = np.array(t_wl)
             self.eulerdeg = Rotation.from_matrix(
                 R_wl).as_euler('ZYX', degrees=True)
 
-            cv2.putText(image, "yaw:{:6.1f} deg   pitch:{:6.1f} deg   roll:{:6.1f} deg".format(
+            # Draw text onto image
+            cv2.putText(self.overlay_image, "yaw:{:6.1f} deg   pitch:{:6.1f} deg   roll:{:6.1f} deg".format(
                 *self.eulerdeg), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
-            cv2.putText(image, "  x:{:6.2f} m         y:{:6.2f} m        z:{:6.2f} m".format(
+            cv2.putText(self.overlay_image, "  x:{:6.2f} m         y:{:6.2f} m        z:{:6.2f} m".format(
                 *self.position), (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
 
         # Update history
@@ -224,8 +227,6 @@ class StateEstimator:
             (self.position_history[1:], [self.position]))
         self.eulerdeg_history = np.concatenate(
             (self.eulerdeg_history[1:], [self.eulerdeg]))
-
-        self.overlay_image = image
 
 
 class Controller:
@@ -314,7 +315,7 @@ class Controller:
 
 class Plotter():
     def __init__(self):
-        figs, axs = plt.subplots(2)
+        figs, axs = plt.subplots(3)
         self.fig = figs
         self.axs = axs
 
@@ -323,8 +324,16 @@ class Plotter():
         self.p_ty, = self.axs[0].plot(np.zeros(1), np.zeros(1), label='y')
         self.p_tz, = self.axs[0].plot(np.zeros(1), np.zeros(1), label='z')
         self.p_yz, = self.axs[1].plot(np.zeros(1), np.zeros(1), label='y-z')
+        self.p_te1, = self.axs[2].plot(
+            np.zeros(1), np.zeros(1), label='yaw')
+        self.p_te2, = self.axs[2].plot(
+            np.zeros(1), np.zeros(1), label='pitch')
+        self.p_te3, = self.axs[2].plot(
+            np.zeros(1), np.zeros(1), label='roll')
+
         axs[0].legend(loc='upper left')
         axs[1].legend(loc='upper left')
+        axs[2].legend(loc='upper left')
 
         self.move_figure(self.fig, 0, 0)
 
@@ -341,8 +350,8 @@ class Plotter():
             f.canvas.manager.window.move(x, y)
         print("moved")
 
-    def first_call(self):
-        # plt.ion()     # turns on interactive mode
+    def initialize_plot(self):
+        # Set matplotlib to non-blocking mode
         plt.show(block=False)
 
     def update(self, se):
@@ -350,6 +359,9 @@ class Plotter():
         xs = se.position_history[:, 0]
         ys = se.position_history[:, 1]
         zs = se.position_history[:, 2]
+        e1s = se.eulerdeg_history[:, 0]
+        e2s = se.eulerdeg_history[:, 1]
+        e3s = se.eulerdeg_history[:, 2]
 
         # time history of x (depth)
         self.p_tx.set_xdata(ts)
@@ -358,9 +370,10 @@ class Plotter():
         self.p_ty.set_ydata(ys)
         self.p_tz.set_xdata(ts)
         self.p_tz.set_ydata(zs)
-        self.axs[0].set_xlim(min(ts), max(ts))
+        self.axs[0].set_xlim(min(ts), max(max(ts), min(ts)+0.01))
         self.axs[0].set_ylim(min(min(xs), min(ys), min(zs)),
-                             max(max(xs), max(ys), max(zs)))
+                             max(max(xs), max(ys), max(zs),
+                                 min(min(xs), min(ys), min(zs))+0.01))
 
         # y-z position
         n_plot = min(len(ys), 10)
@@ -368,6 +381,18 @@ class Plotter():
         self.p_yz.set_ydata(zs[-n_plot:-1])
         self.axs[1].set_xlim(-1, 1)
         self.axs[1].set_ylim(-1, 1)
+
+        # time history of euler angles
+        self.p_te1.set_xdata(ts)
+        self.p_te1.set_ydata(e1s)
+        self.p_te2.set_xdata(ts)
+        self.p_te2.set_ydata(e2s)
+        self.p_te3.set_xdata(ts)
+        self.p_te3.set_ydata(e3s)
+        self.axs[2].set_xlim(min(ts), max(max(ts), min(ts)+0.01))
+        self.axs[2].set_ylim(min(min(e1s), min(e2s), min(e3s)),
+                             max(max(e1s), max(e2s), max(e3s),
+                                 min(min(e1s), min(e2s), min(e3s))+0.01))
 
         self.fig.canvas.draw()
 
@@ -407,7 +432,7 @@ def main():
         quit_flag = False
         first_cv2_imshow = True
 
-        plotter.first_call()
+        plotter.initialize_plot()
         while True:
             for frame in container.decode(video=0):
                 ######## Manage process delay ########
@@ -437,26 +462,25 @@ def main():
                     break
                 elif key == ord('r'):
                     # Save image
-                    rec.write_video_frame(se.overlay_image)
                     rec.write_image(se.overlay_image)
 
                 # Handle key inside the scope of the controller
                 controller.key_handler(key, drone, se)
 
-                ######## Export data ########
+                ######## Show and export data ########
                 # Show image
                 cv2.imshow('Image', se.overlay_image)
                 if first_cv2_imshow:
                     cv2.moveWindow('Image', 700, 0)
 
+                # Update plot
+                plotter.update(se)
+
                 # Write video frame
-                rec.write_video_frame(se.original_image)
+                rec.write_video_frame(se.overlay_image)
 
                 # Write states to log
                 rec.write_log(se.t, se.position, se.eulerdeg)
-
-                # Update plot
-                plotter.update(se)
 
                 ######## Manage process delay ########
                 # Calculate number of frames to skip
