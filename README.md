@@ -13,7 +13,7 @@ $ pip install tellopy
 Anacondaから必要なライブラリをインストール
 
 ```console
-$ conda install numpy
+$ conda install numpy matplotlib
 $ conda install -c conda-forge scipy av opencv
 ```
 
@@ -83,12 +83,3 @@ r.as_euler('ZYX', degrees=True)
 ```
 とする必要がある。
 
-
-
-
-
-
-
-```python
-
-```

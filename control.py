@@ -9,6 +9,8 @@ from PIL import Image, ImageDraw, ImageFilter
 import numpy as np
 from scipy.spatial.transform import Rotation
 import datetime
+import matplotlib
+import matplotlib.pyplot as plt
 
 
 class Recorder:
@@ -124,6 +126,12 @@ class StateEstimator:
         # Define by meters/pixel
         self.scale_factor = 0.108/500
 
+        #### Internal variables ####
+        n_keep = 100
+        self.t_history = np.zeros(n_keep)
+        self.position_history = np.zeros((n_keep, 3))
+        self.eulerdeg_history = np.zeros((n_keep, 3))
+
         #### Images ####
         self.original_image = None
         self.overlay_image = None
@@ -209,6 +217,13 @@ class StateEstimator:
                 *self.eulerdeg), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
             cv2.putText(image, "  x:{:6.2f} m         y:{:6.2f} m        z:{:6.2f} m".format(
                 *self.position), (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
+
+        # Update history
+        self.t_history = np.concatenate((self.t_history[1:], [self.t]))
+        self.position_history = np.concatenate(
+            (self.position_history[1:], [self.position]))
+        self.eulerdeg_history = np.concatenate(
+            (self.eulerdeg_history[1:], [self.eulerdeg]))
 
         self.overlay_image = image
 
@@ -297,6 +312,66 @@ class Controller:
                 drone.backward(speed_command)
 
 
+class Plotter():
+    def __init__(self):
+        figs, axs = plt.subplots(2)
+        self.fig = figs
+        self.axs = axs
+
+        # Dummy plot
+        self.p_tx, = self.axs[0].plot(np.zeros(1), np.zeros(1), label='x')
+        self.p_ty, = self.axs[0].plot(np.zeros(1), np.zeros(1), label='y')
+        self.p_tz, = self.axs[0].plot(np.zeros(1), np.zeros(1), label='z')
+        self.p_yz, = self.axs[1].plot(np.zeros(1), np.zeros(1), label='y-z')
+        axs[0].legend(loc='upper left')
+        axs[1].legend(loc='upper left')
+
+        self.move_figure(self.fig, 0, 0)
+
+    def move_figure(self, f, x, y):
+        """Move figure's upper left corner to pixel (x, y)"""
+        backend = matplotlib.get_backend()
+        if backend == 'TkAgg':
+            f.canvas.manager.window.wm_geometry("+%d+%d" % (x, y))
+        elif backend == 'WXAgg':
+            f.canvas.manager.window.SetPosition((x, y))
+        else:
+            # This works for QT and GTK
+            # You can also use window.setGeometry
+            f.canvas.manager.window.move(x, y)
+        print("moved")
+
+    def first_call(self):
+        # plt.ion()     # turns on interactive mode
+        plt.show(block=False)
+
+    def update(self, se):
+        ts = se.t_history
+        xs = se.position_history[:, 0]
+        ys = se.position_history[:, 1]
+        zs = se.position_history[:, 2]
+
+        # time history of x (depth)
+        self.p_tx.set_xdata(ts)
+        self.p_tx.set_ydata(xs)
+        self.p_ty.set_xdata(ts)
+        self.p_ty.set_ydata(ys)
+        self.p_tz.set_xdata(ts)
+        self.p_tz.set_ydata(zs)
+        self.axs[0].set_xlim(min(ts), max(ts))
+        self.axs[0].set_ylim(min(min(xs), min(ys), min(zs)),
+                             max(max(xs), max(ys), max(zs)))
+
+        # y-z position
+        n_plot = min(len(ys), 10)
+        self.p_yz.set_xdata(-ys[-n_plot:-1])
+        self.p_yz.set_ydata(zs[-n_plot:-1])
+        self.axs[1].set_xlim(-1, 1)
+        self.axs[1].set_ylim(-1, 1)
+
+        self.fig.canvas.draw()
+
+
 def main():
     # Initialize recorder
     rec = Recorder("./output_data")
@@ -306,6 +381,9 @@ def main():
 
     # Initialize controller
     controller = Controller()
+
+    # Initialize plotter
+    plotter = Plotter()
 
     # Create a drone instance
     drone = tellopy.Tello()
@@ -327,6 +405,9 @@ def main():
         frame_skip = 300
 
         quit_flag = False
+        first_cv2_imshow = True
+
+        plotter.first_call()
         while True:
             for frame in container.decode(video=0):
                 ######## Manage process delay ########
@@ -356,6 +437,7 @@ def main():
                     break
                 elif key == ord('r'):
                     # Save image
+                    rec.write_video_frame(se.overlay_image)
                     rec.write_image(se.overlay_image)
 
                 # Handle key inside the scope of the controller
@@ -364,12 +446,17 @@ def main():
                 ######## Export data ########
                 # Show image
                 cv2.imshow('Image', se.overlay_image)
+                if first_cv2_imshow:
+                    cv2.moveWindow('Image', 700, 0)
 
                 # Write video frame
                 rec.write_video_frame(se.original_image)
 
                 # Write states to log
                 rec.write_log(se.t, se.position, se.eulerdeg)
+
+                # Update plot
+                plotter.update(se)
 
                 ######## Manage process delay ########
                 # Calculate number of frames to skip
@@ -389,6 +476,9 @@ def main():
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(exc_type, exc_value, exc_traceback)
         print(ex)
+        for _ in range(8):
+            drone.land()
+            time.sleep(1)
     finally:
         rec.release()
         drone.quit()
