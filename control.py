@@ -97,6 +97,9 @@ class StateEstimator:
         # Euler angles in intrisic z-y-x notation (yaw, pitch, roll)
         self.eulerdeg = np.array([0, 0, 0])
 
+        # Whether a marker was visible in the most recent image
+        self.marker_visible = False
+
         #### Camera parameters ####
         # Camera matrix
         self.cameraMatrix = np.array([[1000.,    0.,  360.],
@@ -159,7 +162,13 @@ class StateEstimator:
         _, rvec, tvec = self.aruco.estimatePoseBoard(
             markerCorners, markerIds, self.board, self.cameraMatrix, self.distCoeffs, None, None)
 
-        if rvec is not None:
+        if rvec is None:
+            # Marker not visible
+            self.marker_visible = False
+        else:
+            # Marker visible
+            self.marker_visible = True
+
             rvec = np.squeeze(rvec)  # column vector to row vector
             tvec = np.squeeze(tvec)  # column vector to row vector
 
@@ -227,6 +236,9 @@ class Controller:
         # Target attitude: yaw, pitch, roll in degrees
         self.target_attitude = np.array([0, 0, 0])
 
+        # Count number of frames with no marker visible during auto mode
+        self.marker_not_visible_count_during_auto = 0
+
     def key_handler(self, key, drone, se):
         if self.mode_auto == False:
             # Manual control
@@ -274,7 +286,18 @@ class Controller:
         else:
             # Automatic control
 
+            # Failsafe: land if marker not visible for a long time
+            if se.marker_visible == False:
+                self.marker_not_visible_count_during_auto += 1
+            if self.marker_not_visible_count_during_auto > 10:
+                # Land and revert to manual mode immediately
+                self.marker_not_visible_count_during_auto = 0
+                drone.land()
+                self.mode_auto = False
+                return
+
             if key == ord('z'):
+                # Change mode
                 self.mode_auto = False
                 # Change log level to show info
                 drone.set_loglevel(drone.LOG_INFO)
@@ -288,17 +311,46 @@ class Controller:
             # Calculate position error
             delta_position = se.position - self.target_position
 
+            k = 0.25  # (m/s)/m TODO: compute feedback gain
+            scale_factor = 300.0  # unit/(m/s) TODO: estimate from log
+            max_command = 30
+
             # x control
             dx = delta_position[0]
-            k = 0  # (m/s)/m TODO: compute feedback gain
-            scale_factor = 0  # unit/(m/s) TODO: estimate from log
-            max_command = 50
-            speed_command = (k*abs(dx))*scale_factor
-            speed_command = np.clip(speed_command, 0, max_command)
-            if dx < -0.1:
+            speed_command = np.clip((k*abs(dx))*scale_factor, 0, max_command)
+            if dx < 0:
                 drone.forward(speed_command)
-            elif dx > 0.1:
+            elif dx > 0:
                 drone.backward(speed_command)
+
+            # y control
+            dy = delta_position[1]
+            speed_command = np.clip((k*abs(dy))*scale_factor, 0, max_command)
+            if dy < 0:
+                drone.left(speed_command)
+            elif dy > 0:
+                drone.right(speed_command)
+
+            # z control
+            dz = delta_position[2]
+            speed_command = np.clip((k*abs(dz))*scale_factor, 0, max_command)
+            if dz < 0:
+                drone.up(speed_command)
+            elif dz > 0:
+                drone.down(speed_command)
+
+            # yaw control
+            delta_attitude = se.eulerdeg - self.target_attitude
+            d_yaw = delta_attitude[0]
+
+            k_yaw = 0.01
+            scale_factor = 1.0  # unit/(deg/s) TODO: estimate from log
+            yawrate_command = np.clip(
+                (k_yaw*abs(d_yaw))*scale_factor, 0, max_command)
+            if d_yaw < 0:
+                drone.clockwise(yawrate_command)
+            elif d_yaw > 0:
+                drone.counter_clockwise(yawrate_command)
 
 
 class Plotter():
