@@ -281,7 +281,8 @@ class Controller:
                 self.mode_auto = False
                 return
 
-            delta_position = self.target_position - se.position
+            # Calculate position error
+            delta_position = se.position - self.target_position
 
             # x control
             dx = delta_position[0]
@@ -290,9 +291,9 @@ class Controller:
             max_command = 50
             speed_command = (k*abs(dx))*scale_factor
             speed_command = np.clip(speed_command, 0, max_command)
-            if dx > 0.1:
+            if dx < -0.1:
                 drone.forward(speed_command)
-            elif dx < 0.1:
+            elif dx > 0.1:
                 drone.backward(speed_command)
 
 
