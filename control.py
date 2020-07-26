@@ -82,6 +82,12 @@ class StateEstimator:
         #         <-----        <-----        <-----
         #          T_cl          T_mc          T_wm
 
+        #### Acuro parameters ####
+        self.aruco = cv2.aruco
+        self.aruco_dictionary = self.aruco.getPredefinedDictionary(
+            self.aruco.DICT_4X4_50)
+        self.aruco_parameters = self.aruco.DetectorParameters_create()
+
         #### Drone states ####
         # Timestamp in seconds
         self.t = 0
@@ -112,19 +118,18 @@ class StateEstimator:
                                     [0.00000000e+000],
                                     [0.00000000e+000]])
 
-        #### Marker map parameters ####
-        self.marker_map = {
-            "0": {"x": 100, "y": 100, "size": 500},
-            "1": {"x": 700, "y": 100, "size": 200},
-            "2": {"x": 700, "y": 400, "size": 200},
-            "3": {"x": 100, "y": 700, "size": 200},
-            "4": {"x": 400, "y": 700, "size": 200},
-            "5": {"x": 700, "y": 700, "size": 200},
-        }
-
-        # Scale factor to convert marker size to real world units
-        # Define by meters/pixel
-        self.scale_factor = 0.108/500
+        #### Marker board parameters ####
+        objPoints = np.array([[[-0.1274,  0.054,  0.01023181],
+                               [-0.0266,  0.054,  0.049005],
+                               [-0.0266, -0.054,  0.049005],
+                               [-0.1274, -0.054,  0.01023181]],
+                              [[0.0266,  0.054,  0.049005],
+                               [0.1274,  0.054,  0.01023181],
+                               [0.1274, -0.054,  0.01023181],
+                               [0.0266, -0.054,  0.049005]]]).astype(np.float32)
+        ids = np.array([11, 22]).astype(np.float32)
+        self.board = cv2.aruco.Board_create(
+            objPoints, self.aruco_dictionary, ids)
 
         #### Internal variables ####
         n_keep = 100
@@ -135,12 +140,6 @@ class StateEstimator:
         #### Images ####
         self.original_image = None
         self.overlay_image = None
-
-        #### Initialization ####
-        self.aruco = cv2.aruco
-        self.aruco_dictionary = self.aruco.getPredefinedDictionary(
-            self.aruco.DICT_4X4_50)
-        self.aruco_parameters = self.aruco.DetectorParameters_create()
 
     def update(self, image):
         # Update timestamp
@@ -154,32 +153,21 @@ class StateEstimator:
         markerCorners, markerIds, _ = self.aruco.detectMarkers(
             image, self.aruco_dictionary, parameters=self.aruco_parameters)
 
-        # Compute rotation and translation relative to marker
+        # Compute rotation and translation relative to marker board
         r_cm = None
         t_cm = None
-        if markerIds is not None:
-            for corners, markerId in zip(markerCorners, markerIds):
-                try:
-                    marker_size = self.marker_map[str(markerId[0])]['size']
-                except KeyError:
-                    # Skip if a marker not defined in marker map is found
-                    continue
+        _, rvec, tvec = self.aruco.estimatePoseBoard(
+            markerCorners, markerIds, self.board, self.cameraMatrix, self.distCoeffs, None, None)
 
-                rvecs, tvecs, _objPoints = self.aruco.estimatePoseSingleMarkers(
-                    corners, marker_size*self.scale_factor, self.cameraMatrix, self.distCoeffs)
+        if rvec is not None:
+            rvec = np.squeeze(rvec)  # column vector to row vector
+            tvec = np.squeeze(tvec)  # column vector to row vector
 
-                # Remove unnecessary axis
-                tvec = np.squeeze(tvecs)
-                rvec = np.squeeze(rvecs)
+            cv2.aruco.drawAxis(
+                self.overlay_image, self.cameraMatrix, self.distCoeffs, rvec, tvec, 0.1)
+            r_cm = Rotation.from_rotvec(rvec)
+            t_cm = tvec
 
-                cv2.aruco.drawAxis(
-                    self.overlay_image, self.cameraMatrix, self.distCoeffs, rvec, tvec, 0.15/2)
-
-                if markerId[0] == 0:
-                    r_cm = Rotation.from_rotvec(rvec)
-                    t_cm = tvec
-
-        if r_cm is not None:
             # Calculate transformation from marker to camera using inverse formula
             # Given rotation matrix R and translation vector t,
             # inverse rotation matrix = R^T
