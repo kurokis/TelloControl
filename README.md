@@ -2,6 +2,8 @@
 
 ## インストール
 
+Anacondaがインストールされている前提とする。
+
 pipからtellopyをインストール
 
 ```console
@@ -18,7 +20,25 @@ $ conda install -c conda-forge scipy av opencv
 Note: PyAVはFFmpegのPythonバインディング
 
 
-# 座標変換
+# マニュアル飛行モード
+
+キーボード入力で制御コマンドをTelloに送信する。
+
+```python
+# Manual control
+#
+# q: quit
+# z: switch mode between manual and auto
+#
+#    w           t           i
+#  a s d         g         j k l
+#
+#  pitch      takeoff      vertical
+#  & roll    & landing     & yaw
+#
+```
+
+# 座標変換について
 
 ## rvec, tvecは何を表しているか？
 
@@ -62,8 +82,6 @@ r.as_euler('zyx', degrees=True)
 r.as_euler('ZYX', degrees=True)
 ```
 とする必要がある。
-
-### 行列のright multiplyとleft multiply
 
 
 
