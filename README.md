@@ -48,26 +48,28 @@ Note: PyAVはFFmpegのPythonバインディング
 #
 ```
 
-# 座標変換について
+# 座標系について
 
-## rvec, tvecは何を表しているか？
+![coordinate_systems](https://github.com/kurokis/TelloControl/blob/master/docs/imgs/coordinate_systems.png)
+
+## arucoモジュールが返すrvec, tvecは何を表しているか？
 
 aruco.estimatePoseSingleMarkersが返すrvec, tvecは何を表現しているか？
-カメラとマーカーの位置関係を表していることは間違いないから、以下の4つが候補である。
+カメラとマーカーの位置関係を表していることは間違いないから、以下が候補にあがる。
 
 1. カメラからみたマーカーの姿勢と位置をカメラ座標系で記述している
 1. カメラからみたマーカーの姿勢と位置をマーカー座標系で記述している
 1. マーカーからみたカメラの姿勢と位置をカメラ座標系で記述している
 1. マーカーからみたカメラの姿勢と位置をマーカー座標系で記述している
 
-このうち2.と3.は移動の起点と記述する座標系が異なるから不自然ではあるが、
-先入観を持たずに検証したいため候補に残しておく。
+このうち2.と3.は移動の起点と記述する座標系が異なるから不自然ではあるが、候補に残しておく。
 
 なお、上記はいずれも空間内で座標軸の位置を移動させる意味合いで書いており、これをactive transformationという。一方で、空間上に固定された点のxyz成分表記が座標系変換でどう変わるかという見方もでき、これをpassive transformationという。Passive transformationも加えるとさらに2つの解釈が生まれる。
 
 5. カメラ座標系でみた点をマーカー座標系で見たときの変換式を与える
 5. マーカー座標系でみた点をカメラ座標系で見たときの変換式を与える
 
+結論としてはaruco.estimatePoseSingleMarkersは1を表現している。
 
 ## どうやって検証する？
 
@@ -76,7 +78,8 @@ aruco.estimatePoseSingleMarkersが返すrvec, tvecは何を表現しているか
 
 
 ### オイラー角
-**特にオイラー角は注意が必要**である。
+
+オイラー角は定義の曖昧性に注意が必要である。
 オイラー角は回転軸の順序の選び方が6通りあり、しかも回転軸の記述方法がintrinsic rotationとextrinsic rotationの2通りある。Intrinsic rotationは逐次回転する座標系の軸を基準に回転方向を記述する方法である。一方、Extrinsic rotationは元の座標系(固定)の軸を基準に回転方向を記述する方法である。
 
 航空分野で通常用いられるオイラー角(nautical angles)はz、y、xの順序のintrinsic rotationで記述したものであり、逐次設定される座標系に'をつけてz-y'-x''のように表現することもある。z、y'、x''軸周りの回転をそれぞれyaw、pitch、rollという。
@@ -93,3 +96,12 @@ r.as_euler('ZYX', degrees=True)
 ```
 とする必要がある。
 
+### 回転行列
+
+回転行列の各列は元の座標系の基底ベクトルを回転した後のベクトルを与えるから、比較的容易に解釈することができる。
+
+rvecから回転行列への変換は``cv2.Rodrigues``で計算できる。
+
+```python
+R, _ = cv2.Rodrigues(rvec)
+```
