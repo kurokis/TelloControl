@@ -105,3 +105,17 @@ rvecから回転行列への変換は``cv2.Rodrigues``で計算できる。
 ```python
 R, _ = cv2.Rodrigues(rvec)
 ```
+
+# Z-flipping現象について
+
+ARマーカーによる姿勢推定の基本原理は、画像上に投影されたマーカーの4隅から剛体変換を推定することである。
+しかし空間上の4点が同一平面内にある場合、曖昧性が排除できないことが知られている。
+これをARマーカーに限らず一般のPnP問題に内在する課題であり、z-flipping現象などと呼ばれることがある。
+
+[Improper or bad rotation estimation with solvePnP in some cases](https://github.com/opencv/opencv/issues/8813)
+
+
+最もシンプルな対処法は、複数のマーカーを同一平面上に乗らないよう配置することである。
+例えば下記のようにマーカーを3次元的に配置すればよい。
+
+![marker_board](https://github.com/kurokis/TelloControl/blob/master/docs/imgs/marker_board.jpg)
