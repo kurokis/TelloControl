@@ -26,7 +26,7 @@ Note: PyAVはFFmpegのPythonバインディング
 |-----------|------|
 | create_calibration_board.py | カメラキャリブレーション用のCharuco board作成 |
 | calibrate_from_images.py | キャリブレーション用画像から補正パラメータ算出 |
-| create_marker_map.py | 位置推定用のマーカー作成 |
+| lib/markerboard.py | マーカー生成のカスタムライブラリ |
 | control.py | 制御用のメインスクリプト |
 
 

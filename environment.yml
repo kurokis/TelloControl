@@ -1,0 +1,21 @@
+name: tellocontrol
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - numpy
+  - matplotlib
+  - pillow
+  - scipy # conda-forge
+  - av # conda-forge
+  - opencv # conda-forge
+  - pip
+  - pip: # Packages installed from PyPI
+    - tellopy
+
+# How to install:
+# conda env create -n tellocontrol -f environment.yml
+
+# Guide
+# https://towardsdatascience.com/a-guide-to-conda-environments-bc6180fc533
