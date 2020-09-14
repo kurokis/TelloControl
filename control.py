@@ -549,7 +549,8 @@ def control_thread(queue):
                 # Show image
                 cv2.imshow('Image', se.overlay_image)
                 if first_cv2_imshow:
-                    cv2.moveWindow('Image', 700, 0)
+                    first_cv2_imshow = False
+                    cv2.moveWindow('Image', 300, 0)
 
                 # Update plot
                 plotter.update(se)
