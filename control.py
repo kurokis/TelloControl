@@ -169,7 +169,7 @@ def face_recognition_thread(queue):
     # Parameters
     device_num = 0
     output_dir = pathlib.Path("output_data")
-    file_prefix = "camera_capture_cycle_"
+    file_prefix = "camera_capture_cycle"
     ext = "jpg"
     cycle = 300
     window_name = "Face Recognition"
@@ -186,37 +186,37 @@ def face_recognition_thread(queue):
 
     n = 0
     while True:
-        n = (n + 1) % cycle
         ret, frame = cap.read()
-
         if not ret:
             continue
+        else:
+            n = (n + 1) % cycle
 
-        cv2.imshow(window_name, frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-        if n == 0:
-            filename = '{}_{}.{}'.format(
-                file_prefix, datetime.datetime.now().strftime('%Y%m%d%H%M%S%f'), ext)
-            image_path = str(output_dir / filename)
-            cv2.imwrite(image_path, frame)
+            cv2.imshow(window_name, frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            if n == 0:
+                filename = '{}_{}.{}'.format(
+                    file_prefix, datetime.datetime.now().strftime('%Y%m%d%H%M%S%f'), ext)
+                image_path = str(output_dir / filename)
+                cv2.imwrite(image_path, frame)
 
-            # Face recognition
-            image = open(image_path, 'rb').read()
-            url = "https://ai-api.userlocal.jp/face"
-            res = requests.post(url, files={"image_data": image})
-            data = json.loads(res.content)
-            result = data['result']
-            # for r in result:
-            #    print(f"""
-            #          年齢: {r['age']}
-            #          感情: {r['emotion']}
-            #          感情内訳： {r['emotion_detail']}
-            #          性別: {r['gender']}
-            #          顔の向き: {r['head_pose']}
-            #          顔の位置: {r['location']}
-            #          """)
-            queue.put(result)
+                # Face recognition
+                image = open(image_path, 'rb').read()
+                url = "https://ai-api.userlocal.jp/face"
+                res = requests.post(url, files={"image_data": image})
+                data = json.loads(res.content)
+                result = data['result']
+                # for r in result:
+                #    print(f"""
+                #          年齢: {r['age']}
+                #          感情: {r['emotion']}
+                #          感情内訳： {r['emotion_detail']}
+                #          性別: {r['gender']}
+                #          顔の向き: {r['head_pose']}
+                #          顔の位置: {r['location']}
+                #          """)
+                queue.put(result)
 
     cv2.destroyWindow(window_name)
 
