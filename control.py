@@ -1,3 +1,5 @@
+import json
+import requests
 import queue
 import threading
 import cv2
@@ -5,7 +7,6 @@ import av
 import tellopy
 from PIL import Image, ImageDraw, ImageFilter
 from scipy.spatial.transform import Rotation
-import matplotlib.pyplot as plt
 import sys
 import traceback
 import time
@@ -16,6 +17,7 @@ import matplotlib
 """manage error mentioned below on mac"""
 """AttributeError: 'FigureManagerMac' object has no attribute 'window'"""
 matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 
 class Recorder:
@@ -28,7 +30,7 @@ class Recorder:
         self.video_save_dir = self.output_dir / "videos"
         self.image_save_dir = self.output_dir / "images"
         self.log_save_dir = self.output_dir / "logs"
-        self.log_filename = datetime.datetime.now().strftime("%y%m%d_%H%M%S")+".csv"
+        self.log_filename = datetime.datetime.now().strftime("%y%m%d_%H%M%S") + ".csv"
 
         # Create directory for saving image
         pathlib.Path(self.image_save_dir).mkdir(parents=True, exist_ok=True)
@@ -48,12 +50,12 @@ class Recorder:
         self.video_writer.write(image)
 
     def write_image(self, image):
-        img_filename = str(self.image_index)+".jpg"
+        img_filename = str(self.image_index) + ".jpg"
         cv2.imwrite(str(self.image_save_dir / img_filename), image)
         self.image_index += 1
 
     def write_log(self, t, position, eulerdeg):
-        log_path = self.log_save_dir/self.log_filename
+        log_path = self.log_save_dir / self.log_filename
 
         # Write header if log file does not yet exist
         if not log_path.exists():
@@ -107,9 +109,9 @@ class StateEstimator:
 
         #### Camera parameters ####
         # Camera matrix
-        self.cameraMatrix = np.array([[1000.,    0.,  360.],
-                                      [0., 1000.,  480.],
-                                      [0.,    0.,    1.]])
+        self.cameraMatrix = np.array([[1000., 0., 360.],
+                                      [0., 1000., 480.],
+                                      [0., 0., 1.]])
         # Distortion coefficients
         self.distCoeffs = np.array([[0.00000000e+000],
                                     [-6.32814106e-123],
@@ -127,14 +129,14 @@ class StateEstimator:
                                     [0.00000000e+000]])
 
         #### Marker board parameters ####
-        objPoints = np.array([[[-0.1274,  0.054,  0.01023181],
-                               [-0.0266,  0.054,  0.049005],
-                               [-0.0266, -0.054,  0.049005],
-                               [-0.1274, -0.054,  0.01023181]],
-                              [[0.0266,  0.054,  0.049005],
-                               [0.1274,  0.054,  0.01023181],
-                               [0.1274, -0.054,  0.01023181],
-                               [0.0266, -0.054,  0.049005]]]).astype(np.float32)
+        objPoints = np.array([[[-0.1274, 0.054, 0.01023181],
+                               [-0.0266, 0.054, 0.049005],
+                               [-0.0266, -0.054, 0.049005],
+                               [-0.1274, -0.054, 0.01023181]],
+                              [[0.0266, 0.054, 0.049005],
+                               [0.1274, 0.054, 0.01023181],
+                               [0.1274, -0.054, 0.01023181],
+                               [0.0266, -0.054, 0.049005]]]).astype(np.float32)
         ids = np.array([11, 22]).astype(np.float32)
         self.board = cv2.aruco.Board_create(
             objPoints, self.aruco_dictionary, ids)
@@ -322,7 +324,8 @@ class Controller:
 
             # x control
             dx = delta_position[0]
-            speed_command = np.clip((k*abs(dx))*scale_factor, 0, max_command)
+            speed_command = np.clip(
+                (k * abs(dx)) * scale_factor, 0, max_command)
             if dx < 0:
                 drone.forward(speed_command)
             elif dx > 0:
@@ -330,7 +333,8 @@ class Controller:
 
             # y control
             dy = delta_position[1]
-            speed_command = np.clip((k*abs(dy))*scale_factor, 0, max_command)
+            speed_command = np.clip(
+                (k * abs(dy)) * scale_factor, 0, max_command)
             if dy < 0:
                 drone.left(speed_command)
             elif dy > 0:
@@ -338,7 +342,8 @@ class Controller:
 
             # z control
             dz = delta_position[2]
-            speed_command = np.clip((k*abs(dz))*scale_factor, 0, max_command)
+            speed_command = np.clip(
+                (k * abs(dz)) * scale_factor, 0, max_command)
             if dz < 0:
                 drone.up(speed_command)
             elif dz > 0:
@@ -351,7 +356,7 @@ class Controller:
             k_yaw = 0.01
             scale_factor = 1.0  # unit/(deg/s) TODO: estimate from log
             yawrate_command = np.clip(
-                (k_yaw*abs(d_yaw))*scale_factor, 0, max_command)
+                (k_yaw * abs(d_yaw)) * scale_factor, 0, max_command)
             if d_yaw < 0:
                 drone.clockwise(yawrate_command)
             elif d_yaw > 0:
@@ -393,7 +398,6 @@ class Plotter():
             # This works for QT and GTK
             # You can also use window.setGeometry
             f.canvas.manager.window.move(x, y)
-        print("moved")
 
     def initialize_plot(self):
         # Set matplotlib to non-blocking mode
@@ -415,10 +419,10 @@ class Plotter():
         self.p_ty.set_ydata(ys)
         self.p_tz.set_xdata(ts)
         self.p_tz.set_ydata(zs)
-        self.axs[0].set_xlim(min(ts), max(max(ts), min(ts)+0.01))
+        self.axs[0].set_xlim(min(ts), max(max(ts), min(ts) + 0.01))
         self.axs[0].set_ylim(min(min(xs), min(ys), min(zs)),
                              max(max(xs), max(ys), max(zs),
-                                 min(min(xs), min(ys), min(zs))+0.01))
+                                 min(min(xs), min(ys), min(zs)) + 0.01))
 
         # y-z position
         n_plot = min(len(ys), 10)
@@ -434,10 +438,10 @@ class Plotter():
         self.p_te2.set_ydata(e2s)
         self.p_te3.set_xdata(ts)
         self.p_te3.set_ydata(e3s)
-        self.axs[2].set_xlim(min(ts), max(max(ts), min(ts)+0.01))
+        self.axs[2].set_xlim(min(ts), max(max(ts), min(ts) + 0.01))
         self.axs[2].set_ylim(min(min(e1s), min(e2s), min(e3s)),
                              max(max(e1s), max(e2s), max(e3s),
-                                 min(min(e1s), min(e2s), min(e3s))+0.01))
+                                 min(min(e1s), min(e2s), min(e3s)) + 0.01))
 
         self.fig.canvas.draw()
 
@@ -456,7 +460,7 @@ def control_thread(queue):
     plotter = Plotter()
 
     # Initialize face recognition
-    fr = 0
+    fr = None
 
     # Create a drone instance
     drone = tellopy.Tello()
@@ -511,9 +515,14 @@ def control_thread(queue):
 
                 ######## Update face recognition status ########
                 while not queue.empty():
-                    item = queue.get(block=False)
-                    fr = item
-                #print("fr:", item)
+                    fr = queue.get(block=False)
+                if fr is not None:
+                    if len(fr) == 0:
+                        pass
+                    else:
+                        r = fr[0]
+                        emotion = r['emotion']
+                        print("emotion:", emotion)
 
                 ######## Control ########
                 # Wait for key press (0xFF is for 64-bit support)
@@ -563,11 +572,11 @@ def control_thread(queue):
 
                 ######## Manage process delay ########
                 # Calculate number of frames to skip
-                if frame.time_base < 1.0/60:
-                    time_base = 1.0/60
+                if frame.time_base < 1.0 / 60:
+                    time_base = 1.0 / 60
                 else:
                     time_base = frame.time_base
-                frame_skip = int((time.time() - start_time)/time_base)
+                frame_skip = int((time.time() - start_time) / time_base)
 
             if quit_flag == True:
                 for _ in range(8):
@@ -589,11 +598,59 @@ def control_thread(queue):
 
 
 def face_recognition_thread(queue):
-    i = 0
+    # Parameters
+    device_num = 0
+    output_dir = pathlib.Path("output_data")
+    file_prefix = "camera_capture_cycle_"
+    ext = "jpg"
+    cycle = 300
+    window_name = "Face Recognition"
+
+    # Open webcam
+    cap = cv2.VideoCapture(device_num)
+
+    if not cap.isOpened():
+        print("webcam not opened")
+        return
+
+    # Create output directory
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    n = 0
     while True:
-        i = (i+1) % 10
-        queue.put(i)
-        time.sleep(1)
+        n = (n + 1) % cycle
+        ret, frame = cap.read()
+
+        if not ret:
+            continue
+
+        cv2.imshow(window_name, frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        if n == 0:
+            filename = '{}_{}.{}'.format(
+                file_prefix, datetime.datetime.now().strftime('%Y%m%d%H%M%S%f'), ext)
+            image_path = str(output_dir / filename)
+            cv2.imwrite(image_path, frame)
+
+            # Face recognition
+            image = open(image_path, 'rb').read()
+            url = "https://ai-api.userlocal.jp/face"
+            res = requests.post(url, files={"image_data": image})
+            data = json.loads(res.content)
+            result = data['result']
+            # for r in result:
+            #    print(f"""
+            #          年齢: {r['age']}
+            #          感情: {r['emotion']}
+            #          感情内訳： {r['emotion_detail']}
+            #          性別: {r['gender']}
+            #          顔の向き: {r['head_pose']}
+            #          顔の位置: {r['location']}
+            #          """)
+            queue.put(result)
+
+    cv2.destroyWindow(window_name)
 
 
 if __name__ == '__main__':
