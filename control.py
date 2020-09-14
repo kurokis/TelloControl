@@ -1,3 +1,11 @@
+import queue
+import threading
+import cv2
+import av
+import tellopy
+from PIL import Image, ImageDraw, ImageFilter
+from scipy.spatial.transform import Rotation
+import matplotlib.pyplot as plt
 import sys
 import traceback
 import time
@@ -8,12 +16,6 @@ import matplotlib
 """manage error mentioned below on mac"""
 """AttributeError: 'FigureManagerMac' object has no attribute 'window'"""
 matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
-from scipy.spatial.transform import Rotation
-from PIL import Image, ImageDraw, ImageFilter
-import tellopy
-import av
-import cv2
 
 
 class Recorder:
@@ -440,7 +442,7 @@ class Plotter():
         self.fig.canvas.draw()
 
 
-def main():
+def control_thread(queue):
     # Initialize recorder
     rec = Recorder("./output_data")
 
@@ -452,6 +454,9 @@ def main():
 
     # Initialize plotter
     plotter = Plotter()
+
+    # Initialize face recognition
+    fr = 0
 
     # Create a drone instance
     drone = tellopy.Tello()
@@ -476,9 +481,10 @@ def main():
         first_cv2_imshow = True
 
         """ADD"""
-		#target
-        #target_list = np.array([[-1.2,-0.3,0.0], [-1.2,0.0,0.0], [-1.2,0.3,0.0], [-1.2,0.0,0.0]])
-        target_list = np.array([[-1.2,0.3,0.0], [-0.9,0.0,0.0], [-1.2,-0.3,0.0], [-1.5,0.0,0.0]])
+        # target
+        # target_list = np.array([[-1.2,-0.3,0.0], [-1.2,0.0,0.0], [-1.2,0.3,0.0], [-1.2,0.0,0.0]])
+        target_list = np.array(
+            [[-1.2, 0.3, 0.0], [-0.9, 0.0, 0.0], [-1.2, -0.3, 0.0], [-1.5, 0.0, 0.0]])
         n_target = len(target_list)
         target_counter = 0
         target_judge = 0.2
@@ -503,6 +509,12 @@ def main():
                 # Update state estimator
                 se.update(image)
 
+                ######## Update face recognition status ########
+                while not queue.empty():
+                    item = queue.get(block=False)
+                    fr = item
+                #print("fr:", item)
+
                 ######## Control ########
                 # Wait for key press (0xFF is for 64-bit support)
                 key = (cv2.waitKey(1) & 0xFF)
@@ -517,7 +529,7 @@ def main():
                     rec.write_image(se.overlay_image)
 
                 """ADD"""
-				# Define target
+                # Define target
                 target_counter = target_counter % n_target
                 print(target_counter)
                 controller.target_position = target_list[target_counter]
@@ -527,7 +539,7 @@ def main():
                 delta_target_norm = np.linalg.norm(delta_target)
                 if delta_target_norm < target_judge:
                     target_counter += 1
-                    #print('next target')
+                    # print('next target')
                 """ADD END"""
 
                 # Handle key inside the scope of the controller
@@ -575,5 +587,19 @@ def main():
         cv2.destroyAllWindows()
 
 
+def face_recognition_thread(queue):
+    i = 0
+    while True:
+        i = (i+1) % 10
+        queue.put(i)
+        time.sleep(1)
+
+
 if __name__ == '__main__':
-    main()
+    queue = queue.Queue()
+
+    t1 = threading.Thread(target=control_thread, args=(queue,))
+    t2 = threading.Thread(target=face_recognition_thread, args=(queue,))
+    t2.setDaemon(True)
+    t1.start()
+    t2.start()
