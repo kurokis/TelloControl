@@ -13,9 +13,11 @@ import av
 import tellopy
 from lib.model import StateEstimator, Controller
 from lib.view import Recorder, Plotter
+import socket
+import json
 
 
-def control_thread(queue):
+def control_thread():
     # Initialize recorder
     rec = Recorder("./output_data")
 
@@ -27,9 +29,6 @@ def control_thread(queue):
 
     # Initialize plotter
     plotter = Plotter()
-
-    # Initialize face recognition
-    fr = None
 
     # Create a drone instance
     drone = tellopy.Tello()
@@ -64,6 +63,17 @@ def control_thread(queue):
 
         plotter.initialize_plot()
         while True:
+            ######## Update face recognition status ########
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect(('127.0.0.1', 8080))
+                s.sendall(b'')
+                json_encoded = s.recv(1024)
+
+                data = json.loads(json_encoded)
+                if len(data['result']) > 0:
+                    emotion = data['result'][0]['emotion']
+                    print("emotion:", emotion)
+
             for frame in container.decode(video=0):
                 ######## Manage process delay ########
                 # Skip frames if needed
@@ -81,17 +91,6 @@ def control_thread(queue):
                 # Update state estimator
                 se.update(image)
 
-                ######## Update face recognition status ########
-                while not queue.empty():
-                    fr = queue.get(block=False)
-                if fr is not None:
-                    if len(fr) == 0:
-                        pass
-                    else:
-                        r = fr[0]
-                        emotion = r['emotion']
-                        print("emotion:", emotion)
-
                 ######## Control ########
                 # Wait for key press (0xFF is for 64-bit support)
                 key = (cv2.waitKey(1) & 0xFF)
@@ -108,7 +107,7 @@ def control_thread(queue):
                 """ADD"""
                 # Define target
                 target_counter = target_counter % n_target
-                print(target_counter)
+                # print(target_counter)
                 controller.target_position = target_list[target_counter]
 
                 # Judge target
@@ -165,67 +164,5 @@ def control_thread(queue):
         cv2.destroyAllWindows()
 
 
-def face_recognition_thread(queue):
-    # Parameters
-    device_num = 0
-    output_dir = pathlib.Path("output_data")
-    file_prefix = "camera_capture_cycle"
-    ext = "jpg"
-    cycle = 300
-    window_name = "Face Recognition"
-
-    # Open webcam
-    cap = cv2.VideoCapture(device_num)
-
-    if not cap.isOpened():
-        print("webcam not opened")
-        return
-
-    # Create output directory
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    n = 0
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            continue
-        else:
-            n = (n + 1) % cycle
-
-            cv2.imshow(window_name, frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-            if n == 0:
-                filename = '{}_{}.{}'.format(
-                    file_prefix, datetime.datetime.now().strftime('%Y%m%d%H%M%S%f'), ext)
-                image_path = str(output_dir / filename)
-                cv2.imwrite(image_path, frame)
-
-                # Face recognition
-                image = open(image_path, 'rb').read()
-                url = "https://ai-api.userlocal.jp/face"
-                res = requests.post(url, files={"image_data": image})
-                data = json.loads(res.content)
-                result = data['result']
-                # for r in result:
-                #    print(f"""
-                #          年齢: {r['age']}
-                #          感情: {r['emotion']}
-                #          感情内訳： {r['emotion_detail']}
-                #          性別: {r['gender']}
-                #          顔の向き: {r['head_pose']}
-                #          顔の位置: {r['location']}
-                #          """)
-                queue.put(result)
-
-    cv2.destroyWindow(window_name)
-
-
 if __name__ == '__main__':
-    queue = queue.Queue()
-
-    t1 = threading.Thread(target=control_thread, args=(queue,))
-    t2 = threading.Thread(target=face_recognition_thread, args=(queue,))
-    t2.setDaemon(True)
-    t1.start()
-    t2.start()
+    control_thread()
