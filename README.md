@@ -28,7 +28,13 @@ Note: PyAVはFFmpegのPythonバインディング
 | calibrate_from_images.py | キャリブレーション用画像から補正パラメータ算出 |
 | create_marker_map.py | 位置推定用のマーカー作成 |
 | control.py | 制御用のメインスクリプト |
+| face_recognition.py | 表情解析用のメインスクリプト |
 
+# 起動方法
+
+ターミナルを2つ立ち上げる。
+1つ目のターミナルでpython face_recognition.pyを実行。
+2つ目のターミナルでpython control.pyを実行。
 
 # マニュアル飛行モード
 
