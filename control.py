@@ -64,15 +64,19 @@ def control_thread():
         plotter.initialize_plot()
         while True:
             ######## Update face recognition status ########
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.connect(('127.0.0.1', 8080))
-                s.sendall(b'')
-                json_encoded = s.recv(1024)
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.connect(('127.0.0.1', 8080))
+                    s.settimeout(3)
+                    s.sendall(b'')
+                    json_encoded = s.recv(1024)
 
-                data = json.loads(json_encoded)
-                if len(data['result']) > 0:
-                    emotion = data['result'][0]['emotion']
-                    print("emotion:", emotion)
+                    data = json.loads(json_encoded)
+                    if len(data['result']) > 0:
+                        emotion = data['result'][0]['emotion']
+                        print("emotion:", emotion)
+            except Exception:
+                pass
 
             for frame in container.decode(video=0):
                 ######## Manage process delay ########
