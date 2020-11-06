@@ -7,6 +7,7 @@ import matplotlib
 """AttributeError: 'FigureManagerMac' object has no attribute 'window'"""
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+import time
 
 
 class Recorder:
@@ -69,6 +70,11 @@ class Plotter():
         figs, axs = plt.subplots(3)
         self.fig = figs
         self.axs = axs
+        
+        self.positives = []
+        self.negatives = []
+        self.neutrals = []
+        self.emotion_time = []
 
         # Dummy plot
         self.p_tx, = self.axs[0].plot(np.zeros(1), np.zeros(1), label='x')
@@ -103,8 +109,44 @@ class Plotter():
     def initialize_plot(self):
         # Set matplotlib to non-blocking mode
         plt.show(block=False)
+        
+    def update_emotion(self, emotion_detail):
+        # 表情のデータを更新する関数
+        
+        if emotion_detail is None:
+            return
+        
+        #HAPPY時系列データ格納
+        ###############################################
+        self.positives.append(emotion_detail['happy'])
+        #happy_list.append('0')
+        #happy_list.insert(0, r['emotion_detail']['happy'])
+        ###############################################
 
-    def update(self, se):
+        #BAD時系列データ格納
+        ###############################################
+        anger_value = emotion_detail['anger']
+        sad_value = emotion_detail['sad']
+        if anger_value > sad_value:
+            self.negatives.append(anger_value)
+        else:
+            self.negatives.append(sad_value)
+            
+        #sur_value = r['emotion_detail']['surprise']
+        #bad_value = anger_value + sur_value
+        #bad_list.append(bad_value)
+        #bad_list.append(anger_value)
+        #bad_list.append('0')
+        ###############################################
+
+        #Neutral時系列データ格納
+        ###############################################
+        self.neutrals.append(emotion_detail['neutral'])
+        ###############################################
+        
+        self.emotion_time.append(time.now())
+
+    def update(self, se, emotion_detail):
         ts = se.t_history
         xs = se.position_history[:, 0]
         ys = se.position_history[:, 1]
@@ -112,6 +154,10 @@ class Plotter():
         e1s = se.eulerdeg_history[:, 0]
         e2s = se.eulerdeg_history[:, 1]
         e3s = se.eulerdeg_history[:, 2]
+        
+        self.update_emotion(emotion_detail)
+        
+        
 
         # time history of x (depth)
         self.p_tx.set_xdata(ts)
@@ -127,8 +173,10 @@ class Plotter():
 
         # y-z position
         n_plot = min(len(ys), 10)
-        self.p_yz.set_xdata(-ys[-n_plot:-1])
-        self.p_yz.set_ydata(zs[-n_plot:-1])
+        #self.p_yz.set_xdata(-ys[-n_plot:-1])
+        #self.p_yz.set_ydata(zs[-n_plot:-1])
+        self.p_yz.set_xdata(self.emotion_time[-n_plot:-1])
+        self.p_yz.set_ydata(self.positives[-n_plot:-1])
         self.axs[1].set_xlim(-1, 1)
         self.axs[1].set_ylim(-1, 1)
 

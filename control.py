@@ -32,6 +32,9 @@ def control_thread():
 
     # Create a drone instance
     drone = tellopy.Tello()
+    
+    # emotion
+    emotion_detail = None
 
     try:
         ######## Connect with the drone ########
@@ -73,8 +76,9 @@ def control_thread():
 
                     data = json.loads(json_encoded)
                     if len(data['result']) > 0:
-                        emotion = data['result'][0]['emotion']
-                        print("emotion:", emotion)
+                        #emotion = data['result'][0]['emotion']
+                        emotion_detail = data['result'][0]['emotion_detail']
+                        #print("emotion:", emotion)
             except Exception:
                 pass
 
@@ -133,7 +137,7 @@ def control_thread():
                     cv2.moveWindow('Image', 300, 0)
 
                 # Update plot
-                plotter.update(se)
+                plotter.update(se, emotion_detail)
 
                 # Write video frame
                 rec.write_video_frame(se.overlay_image)
