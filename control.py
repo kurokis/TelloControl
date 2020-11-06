@@ -55,14 +55,14 @@ def control_thread():
         quit_flag = False
         first_cv2_imshow = True
 
-        """ADD"""
+        #"""ADD"""
         # target
-        target_list = np.array(
-            [[-1.2, 0.3, 0.0], [-0.9, 0.0, 0.0], [-1.2, -0.3, 0.0], [-1.5, 0.0, 0.0]])
-        n_target = len(target_list)
-        target_counter = 0
-        target_judge = 0.2
-        """ADD END"""
+        #target_list = np.array(
+        #    [[-1.2, 0.3, 0.0], [-0.9, 0.0, 0.0], [-1.2, -0.3, 0.0], [-1.5, 0.0, 0.0]])
+        #n_target = len(target_list)
+        #target_counter = 0
+        #target_judge = 0.2
+        #"""ADD END"""
 
         plotter.initialize_plot()
         while True:
@@ -112,19 +112,19 @@ def control_thread():
                     # Save image
                     rec.write_image(se.overlay_image)
 
-                """ADD"""
-                # Define target
-                target_counter = target_counter % n_target
-                # print(target_counter)
-                controller.target_position = target_list[target_counter]
-
-                # Judge target
-                delta_target = se.position - controller.target_position
-                delta_target_norm = np.linalg.norm(delta_target)
-                if delta_target_norm < target_judge:
-                    target_counter += 1
-                    # print('next target')
-                """ADD END"""
+                #"""ADD"""
+                ## Define target
+                #target_counter = target_counter % n_target
+                ## print(target_counter)
+                #controller.target_position = target_list[target_counter]
+                #
+                ## Judge target
+                #delta_target = se.position - controller.target_position
+                #delta_target_norm = np.linalg.norm(delta_target)
+                #if delta_target_norm < target_judge:
+                #    target_counter += 1
+                #    # print('next target')
+                #"""ADD END"""
 
                 # Handle key inside the scope of the controller
                 controller.key_handler(key, drone, se)
