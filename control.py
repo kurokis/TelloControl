@@ -32,6 +32,9 @@ def control_thread():
 
     # Create a drone instance
     drone = tellopy.Tello()
+    
+    # emotion
+    emotion_detail = None
 
     try:
         ######## Connect with the drone ########
@@ -52,14 +55,14 @@ def control_thread():
         quit_flag = False
         first_cv2_imshow = True
 
-        """ADD"""
+        #"""ADD"""
         # target
-        target_list = np.array(
-            [[-1.2, 0.3, 0.0], [-0.9, 0.0, 0.0], [-1.2, -0.3, 0.0], [-1.5, 0.0, 0.0]])
-        n_target = len(target_list)
-        target_counter = 0
-        target_judge = 0.2
-        """ADD END"""
+        #target_list = np.array(
+        #    [[-1.2, 0.3, 0.0], [-0.9, 0.0, 0.0], [-1.2, -0.3, 0.0], [-1.5, 0.0, 0.0]])
+        #n_target = len(target_list)
+        #target_counter = 0
+        #target_judge = 0.2
+        #"""ADD END"""
 
         plotter.initialize_plot()
         while True:
@@ -73,8 +76,9 @@ def control_thread():
 
                     data = json.loads(json_encoded)
                     if len(data['result']) > 0:
-                        emotion = data['result'][0]['emotion']
-                        print("emotion:", emotion)
+                        #emotion = data['result'][0]['emotion']
+                        emotion_detail = data['result'][0]['emotion_detail']
+                        #print("emotion:", emotion)
             except Exception:
                 pass
 
@@ -108,19 +112,19 @@ def control_thread():
                     # Save image
                     rec.write_image(se.overlay_image)
 
-                """ADD"""
-                # Define target
-                target_counter = target_counter % n_target
-                # print(target_counter)
-                controller.target_position = target_list[target_counter]
-
-                # Judge target
-                delta_target = se.position - controller.target_position
-                delta_target_norm = np.linalg.norm(delta_target)
-                if delta_target_norm < target_judge:
-                    target_counter += 1
-                    # print('next target')
-                """ADD END"""
+                #"""ADD"""
+                ## Define target
+                #target_counter = target_counter % n_target
+                ## print(target_counter)
+                #controller.target_position = target_list[target_counter]
+                #
+                ## Judge target
+                #delta_target = se.position - controller.target_position
+                #delta_target_norm = np.linalg.norm(delta_target)
+                #if delta_target_norm < target_judge:
+                #    target_counter += 1
+                #    # print('next target')
+                #"""ADD END"""
 
                 # Handle key inside the scope of the controller
                 controller.key_handler(key, drone, se)
@@ -133,7 +137,7 @@ def control_thread():
                     cv2.moveWindow('Image', 300, 0)
 
                 # Update plot
-                plotter.update(se)
+                plotter.update(se, emotion_detail)
 
                 # Write video frame
                 rec.write_video_frame(se.overlay_image)

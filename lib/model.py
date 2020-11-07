@@ -168,12 +168,16 @@ class Controller:
 
         # Variables for automatic control
         # Target position: x, y, z in meters
-        self.target_position = np.array([-1, 0, 0])
+        self.target_position = np.array([-2.0, 0, 0.8])
         # Target attitude: yaw, pitch, roll in degrees
         self.target_attitude = np.array([0, 0, 0])
 
         # Count number of frames with no marker visible during auto mode
         self.marker_not_visible_count_during_auto = 0
+
+        # state for auto performance
+        self.state = 0
+        self.t0 = 0.0
 
     def key_handler(self, key, drone, se):
         if self.mode_auto == False:
@@ -208,6 +212,8 @@ class Controller:
                 drone.up(30)
             elif key == ord('k'):
                 drone.down(30)
+            elif key == ord('x'):
+                drone.flip_back()
             elif key == ord('z'):
                 self.mode_auto = True
                 # Change log level to avoid showing info
@@ -225,7 +231,8 @@ class Controller:
             # Failsafe: land if marker not visible for a long time
             if se.marker_visible == False:
                 self.marker_not_visible_count_during_auto += 1
-            if self.marker_not_visible_count_during_auto > 10:
+            if self.marker_not_visible_count_during_auto > 20:
+                print('marker not visible')
                 # Land and revert to manual mode immediately
                 self.marker_not_visible_count_during_auto = 0
                 drone.land()
@@ -244,49 +251,131 @@ class Controller:
                 self.mode_auto = False
                 return
 
-            # Calculate position error
-            delta_position = se.position - self.target_position
+            # status change
+            if key == ord('0'):
+                self.state = 0
+            elif key == ord('1'):
+                self.state = 1
+                self.t0 = time.time()
+            elif key == ord('2'):
+                self.state = 2
+                self.t0 = time.time()
+            elif key == ord('3'):
+                self.state = 3
+                self.t0 = time.time()
+            elif key == ord('4'):
+                self.state = 4
+                self.t0 = time.time()
+            print('state:', self.state)
+            # performance depending on state
+            if self.state == 0:
+                # stay target position
+                # Calculate position error
+                delta_position = se.position - self.target_position
 
-            k = 0.25  # (m/s)/m TODO: compute feedback gain
-            scale_factor = 300.0  # unit/(m/s) TODO: estimate from log
-            max_command = 30
+                k = 0.25  # (m/s)/m TODO: compute feedback gain
+                scale_factor = 300.0  # unit/(m/s) TODO: estimate from log
+                scale_factor_z = 500.0  # unit/(m/s) TODO: estimate from log
+                max_command = 30
 
-            # x control
-            dx = delta_position[0]
-            speed_command = np.clip(
-                (k * abs(dx)) * scale_factor, 0, max_command)
-            if dx < 0:
-                drone.forward(speed_command)
-            elif dx > 0:
-                drone.backward(speed_command)
+                # x control
+                dx = delta_position[0]
+                speed_command = np.clip(
+                    (k * abs(dx)) * scale_factor, 0, max_command)
+                if dx < 0:
+                    drone.forward(speed_command)
+                elif dx > 0:
+                    drone.backward(speed_command)
 
-            # y control
-            dy = delta_position[1]
-            speed_command = np.clip(
-                (k * abs(dy)) * scale_factor, 0, max_command)
-            if dy < 0:
-                drone.left(speed_command)
-            elif dy > 0:
-                drone.right(speed_command)
+                # y control
+                dy = delta_position[1]
+                speed_command = np.clip(
+                    (k * abs(dy)) * scale_factor, 0, max_command)
+                if dy < 0:
+                    drone.left(speed_command)
+                elif dy > 0:
+                    drone.right(speed_command)
 
-            # z control
-            dz = delta_position[2]
-            speed_command = np.clip(
-                (k * abs(dz)) * scale_factor, 0, max_command)
-            if dz < 0:
-                drone.up(speed_command)
-            elif dz > 0:
-                drone.down(speed_command)
+                # z control
+                dz = delta_position[2]
+                speed_command = np.clip(
+                    (k * abs(dz)) * scale_factor_z, 0, max_command)
+                if dz < 0:
+                    drone.up(speed_command)
+                elif dz > 0:
+                    drone.down(speed_command)
 
-            # yaw control
-            delta_attitude = se.eulerdeg - self.target_attitude
-            d_yaw = delta_attitude[0]
+                # yaw control
+                delta_attitude = se.eulerdeg - self.target_attitude
+                d_yaw = delta_attitude[0]
 
-            k_yaw = 0.01
-            scale_factor = 1.0  # unit/(deg/s) TODO: estimate from log
-            yawrate_command = np.clip(
-                (k_yaw * abs(d_yaw)) * scale_factor, 0, max_command)
-            if d_yaw < 0:
-                drone.clockwise(yawrate_command)
-            elif d_yaw > 0:
-                drone.counter_clockwise(yawrate_command)
+                k_yaw = 0.01
+                scale_factor = 1.0  # unit/(deg/s) TODO: estimate from log
+                yawrate_command = np.clip(
+                    (k_yaw * abs(d_yaw)) * scale_factor, 0, max_command)
+                if d_yaw < 0:
+                    drone.clockwise(yawrate_command)
+                elif d_yaw > 0:
+                    drone.counter_clockwise(yawrate_command)
+            elif self.state == 1:
+                t = time.time()
+                dt = t - self.t0
+                t_move = 0.5
+                t_stay = 0.3
+                if dt < t_move:
+                    drone.right(40)
+                elif dt >= t_move and dt < t_move + t_stay:
+                    drone.right(0)
+                elif dt >= t_move + t_stay and dt < t_move * 2.0 + t_stay:
+                    drone.left(70)
+                elif dt >= t_move * 2.0 + t_stay and dt < t_move * 2.0 + t_stay * 2.0:
+                    drone.left(0)
+                elif dt >= t_move * 2.0 + t_stay * 2.0 and dt < t_move * 3.0 + t_stay * 2.0:
+                    drone.right(50)
+                elif dt >= t_move * 3.0 + t_stay * 2.0 and dt < t_move * 3.0 + t_stay * 3.0:
+                    drone.right(0)
+                elif dt >= t_move * 3.0 + t_stay * 3.0 and dt < t_move * 4.0 + t_stay * 3.0:
+                    drone.left(50)
+                elif dt >= t_move * 4.0 + t_stay * 3.0 and dt < t_move * 4.0 + t_stay * 4.0:
+                    drone.left(0)
+                elif dt >= t_move * 4.0 + t_stay * 4.0 and dt < t_move * 5.0 + t_stay * 4.0:
+                    drone.right(50)
+                elif dt >= t_move * 5.0 + t_stay * 4.0 and dt < t_move * 5.0 + t_stay * 5.0:
+                    drone.right(0)
+                elif dt >= t_move * 5.0 + t_stay * 5.0 and dt < t_move * 6.0 + t_stay * 5.0:
+                    drone.left(50)
+                else:
+                    drone.left(0)
+                    self.state = 0
+            elif self.state == 2:
+                t = time.time()
+                dt = t - self.t0
+                if dt < 1.5:
+                    drone.up(40)
+                elif dt >= 1.5 and dt < 6.0:
+                    drone.up(0)
+                else:
+                    self.state = 0
+            elif self.state == 3:
+                t = time.time()
+                dt = t - self.t0
+                if dt < 3.0:
+                    drone.flip_forward()
+                    #time.sleep(5.0)
+                else:
+                    self.state = 0
+            elif self.state == 4:
+                t = time.time()
+                dt = t - self.t0
+                t_move = 0.5
+                t_stay = 1.0
+                
+                for _ in range(3):
+                    pass
+                
+                if dt < 3.0:
+                    drone.flip_forward()
+                    #time.sleep(5.0)
+                else:
+                    self.state = 0
+            
