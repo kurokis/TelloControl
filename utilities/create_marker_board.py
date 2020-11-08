@@ -63,15 +63,15 @@ right_face = {
     },
 }
 
-apex_angle = np.arccos((left_length**2+right_length**2 -
-                        base_length**2)/(2*left_length*right_length))
-left_angle = np.arccos((base_length**2+left_length**2 -
-                        right_length**2)/(2*base_length*left_length))
-right_angle = np.arccos((base_length**2+right_length**2 -
-                         left_length**2)/(2*base_length*right_length))
-print("apex angle", apex_angle*180/np.pi)
-print("left angle", left_angle*180/np.pi)
-print("right angle", right_angle*180/np.pi)
+apex_angle = np.arccos((left_length**2 + right_length**2 -
+                        base_length**2) / (2 * left_length * right_length))
+left_angle = np.arccos((base_length**2 + left_length**2 -
+                        right_length**2) / (2 * base_length * left_length))
+right_angle = np.arccos((base_length**2 + right_length**2 -
+                         left_length**2) / (2 * base_length * right_length))
+print("apex angle", apex_angle * 180 / np.pi)
+print("left angle", left_angle * 180 / np.pi)
+print("right angle", right_angle * 180 / np.pi)
 
 # Calculate position
 objPoints = []
@@ -80,21 +80,21 @@ for key in left_face.keys():
     x = left_face[key]["center_x"]
     y = left_face[key]["center_y"]
     size = left_face[key]["size"]
-    upper_left_x = (x-0.5*size)*np.cos(left_angle)-0.5*base_length
-    upper_left_y = y+0.5*size-0.5*base_height
-    upper_left_z = (x-0.5*size)*np.sin(left_angle)
+    upper_left_x = (x - 0.5 * size) * np.cos(left_angle) - 0.5 * base_length
+    upper_left_y = y + 0.5 * size - 0.5 * base_height
+    upper_left_z = (x - 0.5 * size) * np.sin(left_angle)
 
-    upper_right_x = (x+0.5*size)*np.cos(left_angle)-0.5*base_length
-    upper_right_y = y+0.5*size-0.5*base_height
-    upper_right_z = (x+0.5*size)*np.sin(left_angle)
+    upper_right_x = (x + 0.5 * size) * np.cos(left_angle) - 0.5 * base_length
+    upper_right_y = y + 0.5 * size - 0.5 * base_height
+    upper_right_z = (x + 0.5 * size) * np.sin(left_angle)
 
-    lower_right_x = (x+0.5*size)*np.cos(left_angle)-0.5*base_length
-    lower_right_y = y-0.5*size-0.5*base_height
-    lower_right_z = (x+0.5*size)*np.sin(left_angle)
+    lower_right_x = (x + 0.5 * size) * np.cos(left_angle) - 0.5 * base_length
+    lower_right_y = y - 0.5 * size - 0.5 * base_height
+    lower_right_z = (x + 0.5 * size) * np.sin(left_angle)
 
-    lower_left_x = (x-0.5*size)*np.cos(left_angle)-0.5*base_length
-    lower_left_y = y-0.5*size-0.5*base_height
-    lower_left_z = (x-0.5*size)*np.sin(left_angle)
+    lower_left_x = (x - 0.5 * size) * np.cos(left_angle) - 0.5 * base_length
+    lower_left_y = y - 0.5 * size - 0.5 * base_height
+    lower_left_z = (x - 0.5 * size) * np.sin(left_angle)
 
     objPoints.append(
         [[upper_left_x, upper_left_y, upper_left_z],
@@ -107,25 +107,25 @@ for key in right_face.keys():
     x = right_face[key]["center_x"]
     y = right_face[key]["center_y"]
     size = right_face[key]["size"]
-    upper_left_x = 0.5*base_length - \
-        (right_length-(x-0.5*size))*np.cos(right_angle)
-    upper_left_y = y+0.5*size-0.5*base_height
-    upper_left_z = (right_length-(x-0.5*size))*np.sin(right_angle)
+    upper_left_x = 0.5 * base_length - \
+        (right_length - (x - 0.5 * size)) * np.cos(right_angle)
+    upper_left_y = y + 0.5 * size - 0.5 * base_height
+    upper_left_z = (right_length - (x - 0.5 * size)) * np.sin(right_angle)
 
-    upper_right_x = 0.5*base_length - \
-        (right_length-(x+0.5*size))*np.cos(right_angle)
-    upper_right_y = y+0.5*size-0.5*base_height
-    upper_right_z = (right_length-(x+0.5*size))*np.sin(right_angle)
+    upper_right_x = 0.5 * base_length - \
+        (right_length - (x + 0.5 * size)) * np.cos(right_angle)
+    upper_right_y = y + 0.5 * size - 0.5 * base_height
+    upper_right_z = (right_length - (x + 0.5 * size)) * np.sin(right_angle)
 
-    lower_right_x = 0.5*base_length - \
-        (right_length-(x+0.5*size))*np.cos(right_angle)
-    lower_right_y = y-0.5*size-0.5*base_height
-    lower_right_z = (right_length-(x+0.5*size))*np.sin(right_angle)
+    lower_right_x = 0.5 * base_length - \
+        (right_length - (x + 0.5 * size)) * np.cos(right_angle)
+    lower_right_y = y - 0.5 * size - 0.5 * base_height
+    lower_right_z = (right_length - (x + 0.5 * size)) * np.sin(right_angle)
 
-    lower_left_x = 0.5*base_length - \
-        (right_length-(x-0.5*size))*np.cos(right_angle)
-    lower_left_y = y-0.5*size-0.5*base_height
-    lower_left_z = (right_length-(x-0.5*size))*np.sin(right_angle)
+    lower_left_x = 0.5 * base_length - \
+        (right_length - (x - 0.5 * size)) * np.cos(right_angle)
+    lower_left_y = y - 0.5 * size - 0.5 * base_height
+    lower_left_z = (right_length - (x - 0.5 * size)) * np.sin(right_angle)
 
     objPoints.append(
         [[upper_left_x, upper_left_y, upper_left_z],
@@ -138,7 +138,7 @@ objPoints = np.array(objPoints).astype(np.float32)
 
 # Save results
 np.set_printoptions(threshold=sys.maxsize)
-with open(str(save_dir/"marker_board.txt"), 'w') as f:
+with open(str(save_dir / "marker_board.txt"), 'w') as f:
     f.write(array_repr(objPoints))
 print("marker board saved to {}".format(str(save_dir)))
 
@@ -148,9 +148,9 @@ ax = Axes3D(fig)
 for marker in objPoints:
     ax.plot(marker[:, 0], marker[:, 1], marker[:, 2],
             "o-", color="#00aa00", ms=4, mew=0.5)
-ax.plot([-base_length/2, base_length/2, base_length/2, -base_length/2, -base_length/2],
-        [base_height/2, base_height/2, -base_height /
-            2, -base_height/2, base_height/2],
+ax.plot([-base_length / 2, base_length / 2, base_length / 2, -base_length / 2, -base_length / 2],
+        [base_height / 2, base_height / 2, -base_height /
+            2, -base_height / 2, base_height / 2],
         [0, 0, 0, 0, 0])
 ax.set_xlim(-0.3, 0.3)
 ax.set_ylim(-0.3, 0.3)
@@ -181,11 +181,11 @@ for key in left_face.keys():
     x = left_face[key]["center_x"]
     y = left_face[key]["center_y"]
     size = left_face[key]["size"]
-    marker = aruco.drawMarker(dictionary, marker_id, int(10000*size))
+    marker = aruco.drawMarker(dictionary, marker_id, int(10000 * size))
     marker_image = Image.fromarray(marker)
     base_image.paste(
-        marker_image, (int(10000*(x-size/2)), int(10000*(y-size/2))))
-    cv2.imwrite(str(save_dir / (str(marker_id)+".png")), marker)
+        marker_image, (int(10000 * (x - size / 2)), int(10000 * (y - size / 2))))
+    cv2.imwrite(str(save_dir / (str(marker_id) + ".png")), marker)
 base_image.save(str(save_dir / 'marker_board_left.png'))
 
 # Create right face image
@@ -196,11 +196,11 @@ for key in right_face.keys():
     x = right_face[key]["center_x"]
     y = right_face[key]["center_y"]
     size = right_face[key]["size"]
-    marker = aruco.drawMarker(dictionary, marker_id, int(10000*size))
+    marker = aruco.drawMarker(dictionary, marker_id, int(10000 * size))
     marker_image = Image.fromarray(marker)
     base_image.paste(
-        marker_image, (int(10000*(x-size/2)), int(10000*(y-size/2))))
-    cv2.imwrite(str(save_dir / (str(marker_id)+".png")), marker)
+        marker_image, (int(10000 * (x - size / 2)), int(10000 * (y - size / 2))))
+    cv2.imwrite(str(save_dir / (str(marker_id) + ".png")), marker)
 base_image.save(str(save_dir / 'marker_board_right.png'))
 
 
@@ -218,9 +218,9 @@ image = cv2.imread("./input_data/3.jpg")
 
 
 # Camera matrix
-cameraMatrix = np.array([[1000.,    0.,  360.],
-                         [0., 1000.,  480.],
-                         [0.,    0.,    1.]])
+cameraMatrix = np.array([[1000., 0., 360.],
+                         [0., 1000., 480.],
+                         [0., 0., 1.]])
 # Distortion coefficients
 distCoeffs = np.array([[0.00000000e+000],
                        [-6.32814106e-123],

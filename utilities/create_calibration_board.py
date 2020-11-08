@@ -15,7 +15,7 @@ pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
 squaresX = 7
 squaresY = 5
 squareLength = 0.036
-markerLength = squareLength*0.8
+markerLength = squareLength * 0.8
 
 ######## Create charuco board ########
 
@@ -25,7 +25,7 @@ board = aruco.CharucoBoard_create(
     squaresX, squaresY, squareLength, markerLength, aruco_dict)
 imboard = board.draw((2000, 2000))
 
-cv2.imwrite(str(save_dir/"chessboard.tiff"), imboard)
+cv2.imwrite(str(save_dir / "chessboard.tiff"), imboard)
 print("calibration board saved to {}".format(str(save_dir)))
 
 fig = plt.figure()

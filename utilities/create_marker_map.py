@@ -42,7 +42,7 @@ def generate_aruco_marker(marker_id, size):
 
     marker = aruco.drawMarker(dictionary, marker_id, size)
 
-    cv2.imwrite(str(save_dir / (str(marker_id)+".png")), marker)
+    cv2.imwrite(str(save_dir / (str(marker_id) + ".png")), marker)
 
     return marker
 

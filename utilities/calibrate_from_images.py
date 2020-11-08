@@ -16,7 +16,7 @@ pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
 squaresX = 7
 squaresY = 5
 squareLength = 0.036
-markerLength = squareLength*0.8
+markerLength = squareLength * 0.8
 
 aruco = cv2.aruco
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
@@ -24,7 +24,7 @@ board = aruco.CharucoBoard_create(
     squaresX, squaresY, squareLength, markerLength, aruco_dict)
 
 
-image_paths = np.array([str(calib_img_dir/f)
+image_paths = np.array([str(calib_img_dir / f)
                         for f in os.listdir(calib_img_dir) if f.endswith(".jpg")])
 
 
@@ -71,9 +71,9 @@ def calibrate_camera(allCorners, allIds, imsize):
     Calibrates the camera using the detected corners.
     """
 
-    cameraMatrixInit = np.array([[1000.,    0., imsize[0]/2.],
-                                 [0., 1000., imsize[1]/2.],
-                                 [0.,    0.,           1.]])
+    cameraMatrixInit = np.array([[1000., 0., imsize[0] / 2.],
+                                 [0., 1000., imsize[1] / 2.],
+                                 [0., 0., 1.]])
 
     distCoeffsInit = np.zeros((5, 1))
     flags = (cv2.CALIB_USE_INTRINSIC_GUESS +
@@ -100,10 +100,10 @@ ret, cameraMatrix, distCoeffs, rvecs, tvecs = calibrate_camera(
     allCorners, allIds, imsize)
 
 
-with open(str(save_dir/"camera_matrix.txt"), 'w') as f:
+with open(str(save_dir / "camera_matrix.txt"), 'w') as f:
     f.write(array_repr(cameraMatrix))
 
-with open(str(save_dir/"distortion_coefficients.txt"), 'w') as f:
+with open(str(save_dir / "distortion_coefficients.txt"), 'w') as f:
     f.write(array_repr(distCoeffs))
 
 print("calibration results saved to {}".format(str(save_dir)))
