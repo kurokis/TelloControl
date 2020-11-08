@@ -1,0 +1,16 @@
+name: telloenv
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - numpy
+  - matplotlib
+  - pillow
+  - requests
+  - scipy
+  - av
+  - opencv
+  - pip
+  - pip:
+    - tellopy

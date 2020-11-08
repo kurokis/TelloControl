@@ -4,6 +4,13 @@
 
 Anacondaがインストールされている前提とする。
 
+## バッチファイルでインストールする方法
+
+install.batを実行するとtelloenvという名前の仮想環境上に必要なライブラリがインストールされる。
+
+
+## 手動でインストールする方法
+
 pipからtellopyをインストール
 
 ```console
@@ -13,7 +20,7 @@ $ pip install tellopy
 Anacondaから必要なライブラリをインストール
 
 ```console
-$ conda install numpy matplotlib pillow
+$ conda install numpy matplotlib pillow requests
 $ conda install -c conda-forge scipy av opencv
 ```
 
@@ -26,15 +33,18 @@ Note: PyAVはFFmpegのPythonバインディング
 |-----------|------|
 | create_calibration_board.py | カメラキャリブレーション用のCharuco board作成 |
 | calibrate_from_images.py | キャリブレーション用画像から補正パラメータ算出 |
-| create_marker_map.py | 位置推定用のマーカー作成 |
+| create_marker_board.py | 位置推定用のマーカー作成 |
 | control.py | 制御用のメインスクリプト |
-| face_recognition.py | 表情解析用のメインスクリプト |
 
 # 起動方法
 
-ターミナルを2つ立ち上げる。
-1つ目のターミナルでpython face_recognition.pyを実行。
-2つ目のターミナルでpython control.pyを実行。
+## バッチファイルで実行する方法
+
+run.batを実行するとtelloenv環境上でcontrol.pyが実行される
+
+## 手動で実行する方法
+
+python control.pyでメインスクリプトを実行する
 
 # マニュアル飛行モード
 

@@ -5,16 +5,17 @@ import datetime
 import pathlib
 import json
 import requests
-import queue
-import threading
+#import queue
+#import threading
 import numpy as np
 import cv2
 import av
 import tellopy
 from lib.model import StateEstimator, Controller
 from lib.view import Recorder, Plotter
-import socket
-import json
+from lib.emotion import find_camera, analyze_emotion
+#import socket
+from concurrent.futures import ThreadPoolExecutor
 
 
 def control_thread():
@@ -30,16 +31,29 @@ def control_thread():
     # Initialize plotter
     plotter = Plotter()
 
+    # Open webcam
+    camera_found = False
+    camera_num = find_camera()
+    if camera_num != -1:
+        camera_found = True
+        cap = cv2.VideoCapture(camera_num)
+
+    # Subprocess executor
+    executor = ThreadPoolExecutor()
+
     # Create a drone instance
     drone = tellopy.Tello()
-    
+
     # emotion
+    emotion_process_running = False
+    t_last_call = time.time()
+    emotion_process_interval = 5.0
     emotion_detail = None
 
     try:
         ######## Connect with the drone ########
         drone.connect()
-        drone.wait_for_connection(60.0)
+        drone.wait_for_connection(30.0)
         retry = 3
         container = None
         while container is None and 0 < retry:
@@ -51,37 +65,38 @@ def control_thread():
                 print('retry...')
         # Skip first 300 frames
         frame_skip = 300
+    except Exception as ex:
+        pass
 
+    try:
         quit_flag = False
         first_cv2_imshow = True
-
-        #"""ADD"""
-        # target
-        #target_list = np.array(
-        #    [[-1.2, 0.3, 0.0], [-0.9, 0.0, 0.0], [-1.2, -0.3, 0.0], [-1.5, 0.0, 0.0]])
-        #n_target = len(target_list)
-        #target_counter = 0
-        #target_judge = 0.2
-        #"""ADD END"""
 
         plotter.initialize_plot()
         while True:
             ######## Update face recognition status ########
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.connect(('127.0.0.1', 8080))
-                    s.settimeout(3)
-                    s.sendall(b'')
-                    json_encoded = s.recv(1024)
+            if camera_found:
+                # Pass image data to emotion API if emotion process is not busy
+                if (emotion_process_running == False) & (time.time() - t_last_call > emotion_process_interval):
+                    ret, webcam_frame = cap.read()
+                    if not ret:
+                        continue
+                    cv2.imwrite("latest.jpg", webcam_frame)
+                    image = open("latest.jpg", 'rb').read()
+                    future = executor.submit(analyze_emotion, image)
+                    emotion_process_running = True
+                    t_last_call = time.time()
 
-                    data = json.loads(json_encoded)
-                    if len(data['result']) > 0:
-                        #emotion = data['result'][0]['emotion']
-                        emotion_detail = data['result'][0]['emotion_detail']
-                        #print("emotion:", emotion)
-            except Exception:
-                pass
+                # Store information into emotion_detail when API returns data
+                if emotion_process_running:
+                    if future.done():
+                        data = future.result()
+                        if len(data['result']) > 0:
+                            emotion_detail = data['result'][0]['emotion_detail']
+                        emotion_process_running = False
+                        cv2.imshow('Webcam', webcam_frame)
 
+            ######## Process video stream from Tello ########
             for frame in container.decode(video=0):
                 ######## Manage process delay ########
                 # Skip frames if needed
@@ -112,29 +127,15 @@ def control_thread():
                     # Save image
                     rec.write_image(se.overlay_image)
 
-                #"""ADD"""
-                ## Define target
-                #target_counter = target_counter % n_target
-                ## print(target_counter)
-                #controller.target_position = target_list[target_counter]
-                #
-                ## Judge target
-                #delta_target = se.position - controller.target_position
-                #delta_target_norm = np.linalg.norm(delta_target)
-                #if delta_target_norm < target_judge:
-                #    target_counter += 1
-                #    # print('next target')
-                #"""ADD END"""
-
                 # Handle key inside the scope of the controller
                 controller.key_handler(key, drone, se)
 
                 ######## Show and export data ########
                 # Show image
-                cv2.imshow('Image', se.overlay_image)
+                cv2.imshow('Tello', se.overlay_image)
                 if first_cv2_imshow:
                     first_cv2_imshow = False
-                    cv2.moveWindow('Image', 300, 0)
+                    cv2.moveWindow('Tello', 300, 0)
 
                 # Update plot
                 plotter.update(se, emotion_detail)
