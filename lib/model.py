@@ -168,7 +168,7 @@ class Controller:
 
         # Variables for automatic control
         # Target position: x, y, z in meters
-        self.target_position = np.array([-2.0, 0, 0.8])
+        self.target_position = np.array([-2.0, 0.0, 0.0])
         # Target attitude: yaw, pitch, roll in degrees
         self.target_attitude = np.array([0, 0, 0])
 
@@ -275,8 +275,8 @@ class Controller:
 
                 k = 0.25  # (m/s)/m TODO: compute feedback gain
                 scale_factor = 200.0  # unit/(m/s) TODO: estimate from log
-                scale_factor_z = 500.0  # unit/(m/s) TODO: estimate from log
-                max_command = 40
+                scale_factor_z = 400.0  # unit/(m/s) TODO: estimate from log
+                max_command = 50
 
                 # x control
                 dx = delta_position[0]
@@ -321,7 +321,7 @@ class Controller:
                 t = time.time()
                 dt = t - self.t0
                 t_move = 0.4
-                t_stay = 0.6
+                t_stay = 0.8
                 t_cycle = 2.0 * (t_move + t_stay)
                 mod_dt = dt % t_cycle
                 if dt < t_move * 2.0 + t_stay * 2.0:
@@ -333,7 +333,7 @@ class Controller:
 	                    drone.down(30)
                     elif mod_dt >= t_move * 2.0 + t_stay and mod_dt < t_move * 2.0 + t_stay * 2.0:
 	                    drone.down(0)
-                else:
+                elif dt >= t_move * 2.0 + t_stay * 2.0 and dt < (t_move * 2.0 + t_stay * 2.0) * 3.0:
                     if mod_dt < t_move:
                         drone.up(50)
                     elif mod_dt >= t_move and mod_dt < t_move + t_stay:
@@ -342,11 +342,13 @@ class Controller:
                         drone.down(50)
                     elif mod_dt >= t_move * 2.0 + t_stay and mod_dt < t_move * 2.0 + t_stay * 2.0:
                         drone.down(0)
+                else:
+                    self.state == 0
             elif self.state == 2:
                 t = time.time()
                 dt = t - self.t0
                 t_move = 0.4
-                t_stay = 0.6
+                t_stay = 0.8
                 t_cycle = 2.0 * (t_move + t_stay)
                 mod_dt = dt % t_cycle
                 if dt < t_move * 2.0 + t_stay * 2.0:
@@ -358,7 +360,7 @@ class Controller:
 	                    drone.left(30)
                     elif mod_dt >= t_move * 2.0 + t_stay and mod_dt < t_move * 2.0 + t_stay * 2.0:
 	                    drone.left(0)
-                else:
+                elif dt >= t_move * 2.0 + t_stay * 2.0 and dt < (t_move * 2.0 + t_stay * 2.0) * 3.0:
                     if mod_dt < t_move:
                         drone.right(50)
                     elif mod_dt >= t_move and mod_dt < t_move + t_stay:
@@ -367,6 +369,8 @@ class Controller:
                         drone.left(50)
                     elif mod_dt >= t_move * 2.0 + t_stay and mod_dt < t_move * 2.0 + t_stay * 2.0:
                         drone.left(0)
+                else:
+                    self.state == 0
             elif self.state == 3:
                 t = time.time()
                 dt = t - self.t0
