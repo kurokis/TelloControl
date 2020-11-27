@@ -168,7 +168,7 @@ class Controller:
 
         # Variables for automatic control
         # Target position: x, y, z in meters
-        self.target_position = np.array([-2.0, 0.0, 0.0])
+        self.target_position = np.array([-2.5, 0.0, 0.5])
         # Target attitude: yaw, pitch, roll in degrees
         self.target_attitude = np.array([0, 0, 0])
 
@@ -266,8 +266,34 @@ class Controller:
             elif key == ord('4'):
                 self.state = 4
                 self.t0 = time.time()
+            elif key == ord('5'):
+                self.state = 5
+                self.t0 = time.time()
+            elif key == ord('6'):
+                self.state = 6
+                self.t0 = time.time()
+            elif key == ord('7'):
+                self.state = 7
+                self.t0 = time.time()
+            elif key == ord('8'):
+                self.state = 8
+                self.t0 = time.time()
+            elif key == ord('a'):
+                self.target_position[1] += 0.1
+            elif key == ord('d'):
+                self.target_position[1] -= 0.1
+            elif key == ord('w'):
+                self.target_position[0] += 0.1
+            elif key == ord('s'):
+                self.target_position[0] -= 0.1
+            elif key == ord('i'):
+                self.target_position[2] += 0.1
+            elif key == ord('k'):
+                self.target_position[2] -= 0.1
             print('state:', self.state)
+            print('target:',self.target_position)
             # performance depending on state
+            # Fixed position
             if self.state == 0:
                 # stay target position
                 # Calculate position error
@@ -317,6 +343,7 @@ class Controller:
                     drone.clockwise(yawrate_command)
                 elif d_yaw > 0:
                     drone.counter_clockwise(yawrate_command)
+            # UP and DOWN
             elif self.state == 1:
                 t = time.time()
                 dt = t - self.t0
@@ -326,7 +353,7 @@ class Controller:
                 mod_dt = dt % t_cycle
                 if dt < t_move * 2.0 + t_stay * 2.0:
                     if mod_dt < t_move:
-	                    drone.up(10)
+	                    drone.up(30)
                     elif mod_dt >= t_move and mod_dt < t_move + t_stay:
 	                    drone.up(0)
                     elif mod_dt >= t_move + t_stay and mod_dt < t_move * 2.0 + t_stay:
@@ -335,29 +362,46 @@ class Controller:
 	                    drone.down(0)
                 elif dt >= t_move * 2.0 + t_stay * 2.0 and dt < (t_move * 2.0 + t_stay * 2.0) * 3.0:
                     if mod_dt < t_move:
-                        drone.up(50)
+                        drone.up(60)
                     elif mod_dt >= t_move and mod_dt < t_move + t_stay:
                         drone.up(0)
                     elif mod_dt >= t_move + t_stay and mod_dt < t_move * 2.0 + t_stay:
-                        drone.down(50)
+                        drone.down(60)
                     elif mod_dt >= t_move * 2.0 + t_stay and mod_dt < t_move * 2.0 + t_stay * 2.0:
                         drone.down(0)
                 else:
-                    self.state == 0
-            elif self.state == 2:
+                    self.state = 0
+            # UP and DOWN
+            elif self.state == 5:
                 t = time.time()
                 dt = t - self.t0
                 t_move = 0.4
                 t_stay = 0.8
+                if dt < t_move:
+                    drone.up(60)
+                elif dt >= t_move and dt < t_move + t_stay:
+                    drone.up(0)
+                elif dt >= t_move + t_stay and dt < t_move * 2.0 + t_stay:
+	                drone.down(60)
+                elif dt >= t_move * 2.0 + t_stay and dt < t_move * 2.0 + t_stay * 2.0:
+	                drone.down(0)
+                else:
+                    self.state = 0
+            # RIGHT and LEFT
+            elif self.state == 2:
+                t = time.time()
+                dt = t - self.t0
+                t_move = 0.4
+                t_stay = 1.0
                 t_cycle = 2.0 * (t_move + t_stay)
                 mod_dt = dt % t_cycle
                 if dt < t_move * 2.0 + t_stay * 2.0:
                     if mod_dt < t_move:
-	                    drone.right(10)
+	                    drone.right(20)
                     elif mod_dt >= t_move and mod_dt < t_move + t_stay:
 	                    drone.right(0)
                     elif mod_dt >= t_move + t_stay and mod_dt < t_move * 2.0 + t_stay:
-	                    drone.left(30)
+	                    drone.left(20)
                     elif mod_dt >= t_move * 2.0 + t_stay and mod_dt < t_move * 2.0 + t_stay * 2.0:
 	                    drone.left(0)
                 elif dt >= t_move * 2.0 + t_stay * 2.0 and dt < (t_move * 2.0 + t_stay * 2.0) * 3.0:
@@ -370,26 +414,116 @@ class Controller:
                     elif mod_dt >= t_move * 2.0 + t_stay and mod_dt < t_move * 2.0 + t_stay * 2.0:
                         drone.left(0)
                 else:
-                    self.state == 0
+                    self.state = 0
+            # RIGHT and LEFT
+            elif self.state == 6:
+                t = time.time()
+                dt = t - self.t0
+                t_move = 0.4
+                t_stay = 1.0
+                if dt < t_move:
+                    drone.right(50)
+                elif dt >= t_move and dt < t_move + t_stay:
+                    drone.right(0)
+                elif dt >= t_move + t_stay and dt < t_move * 2.0 + t_stay:
+	                drone.left(60)
+                elif dt >= t_move * 2.0 + t_stay and dt < t_move * 2.0 + t_stay * 2.0:
+	                drone.left(0)
+                else:
+                    self.state = 0
+			# FORWARD and BACKWARD
             elif self.state == 3:
                 t = time.time()
                 dt = t - self.t0
-                if dt < 3.0:
-                    drone.flip_forward()
-                    #time.sleep(5.0)
+                t_move = 0.3
+                t_stay = 1.0
+                t_cycle = 2.0 * (t_move + t_stay)
+                mod_dt = dt % t_cycle
+                if dt < t_move * 2.0 + t_stay * 2.0:
+                    if mod_dt < t_move:
+                        drone.forward(20)
+                    elif mod_dt >= t_move and mod_dt < t_move + t_stay:
+	                    drone.forward(0)
+                    elif mod_dt >= t_move + t_stay and mod_dt < t_move * 2.0 + t_stay:
+	                    drone.backward(30)
+                    elif mod_dt >= t_move * 2.0 + t_stay and mod_dt < t_move * 2.0 + t_stay * 2.0:
+	                    drone.backward(0)
+                elif dt >= t_move * 2.0 + t_stay * 2.0 and dt < (t_move * 2.0 + t_stay * 2.0) * 3.0:
+                    if mod_dt < t_move:
+                        drone.forward(50)
+                    elif mod_dt >= t_move and mod_dt < t_move + t_stay:
+                        drone.forward(0)
+                    elif mod_dt >= t_move + t_stay and mod_dt < t_move * 2.0 + t_stay:
+                        drone.backward(60)
+                    elif mod_dt >= t_move * 2.0 + t_stay and mod_dt < t_move * 2.0 + t_stay * 2.0:
+                        drone.backward(0)
                 else:
                     self.state = 0
+            # FORWARD and BACKWARD
+            elif self.state == 7:
+                t = time.time()
+                dt = t - self.t0
+                t_move = 0.3
+                t_stay = 1.0
+                if dt < t_move:
+                    drone.forward(50)
+                elif dt >= t_move and dt < t_move + t_stay:
+                    drone.forward(0)
+                elif dt >= t_move + t_stay and dt < t_move * 2.0 + t_stay:
+	                drone.backward(60)
+                elif dt >= t_move * 2.0 + t_stay and dt < t_move * 2.0 + t_stay * 2.0:
+	                drone.backward(0)
+                else:
+                    self.state = 0
+            # CIRCLE
             elif self.state == 4:
                 t = time.time()
                 dt = t - self.t0
-                t_move = 0.5
+                t_move = 0.6
                 t_stay = 1.0
-
-                for _ in range(3):
-                    pass
-
-                if dt < 3.0:
-                    drone.flip_forward()
-                    #time.sleep(5.0)
+                if dt < t_move:
+                    drone.forward(30)
+                elif dt >= t_move and dt < t_move + t_stay:
+                    drone.forward(0)
+                elif dt >= t_move + t_stay and dt < t_move * 2.0 + t_stay:
+                    drone.right(40)
+                elif dt >= t_move * 2.0 + t_stay and dt < t_move * 2.0 + t_stay * 2.0:
+                    drone.right(0)
+                elif dt >= t_move * 2.0 + t_stay * 2.0 and dt < t_move * 3.0 + t_stay * 2.0:
+                    drone.backward(50)
+                elif dt >= t_move * 3.0 + t_stay * 2.0 and dt < t_move * 3.0 + t_stay * 3.0:
+                    drone.backward(0)
+                elif dt >= t_move * 3.0 + t_stay * 3.0 and dt < t_move * 4.0 + t_stay * 3.0:
+                    drone.left(50)
+                elif dt >= t_move * 4.0 + t_stay * 3.0 and dt < t_move * 4.0 + t_stay * 4.0:
+                    drone.left(0)
+                elif dt >= t_move * 4.0 + t_stay * 4.0 and dt < t_move * 5.0 + t_stay * 4.0:
+                    drone.forward(50)
+                elif dt >= t_move * 5.0 + t_stay * 4.0 and dt < t_move * 5.0 + t_stay * 5.0:
+                    drone.forward(0)
+                elif dt >= t_move * 5.0 + t_stay * 5.0 and dt < t_move * 6.0 + t_stay * 5.0:
+                    drone.right(40)
+                elif dt >= t_move * 6.0 + t_stay * 5.0 and dt < t_move * 6.0 + t_stay * 6.0:
+                    drone.right(0)
                 else:
                     self.state = 0
+            # LANDING
+            elif self.state == 8:
+                t = time.time()
+                dt = t - self.t0
+                t_move = 0.4
+                t_stay = 0.8
+                if dt < t_move:
+                    drone.up(60)
+                elif dt >= t_move and dt < t_move + t_stay:
+                    drone.up(0)
+                elif dt >= t_move + t_stay and dt < t_move * 2.0 + t_stay:
+	                drone.down(60)
+                elif dt >= t_move * 2.0 + t_stay and dt < t_move * 2.0 + t_stay * 2.0:
+	                drone.down(0)
+                elif dt >= t_move * 2.0 + t_stay * 2.0 and dt < t_move * 4.0 + t_stay * 4.0:
+	                drone.forward(50)
+                elif dt >= t_move * 4.0 + t_stay * 4.0 and dt < t_move * 4.0 + t_stay * 5.0:
+	                drone.forward(0)
+                else:
+                    drone.land()
